@@ -1,0 +1,324 @@
+<template>
+	<view class="container">
+		<!-- 标题 -->
+		<view class="header">
+			<text class="title">📖 绘本识字</text>
+			<text class="subtitle">拍多张绘本页面，自动识别文字</text>
+		</view>
+
+		<!-- 选图按钮 -->
+		<button class="pick-btn" @click="onPick" :disabled="processing">
+			{{ processing ? `识别中...` : '📷 选择绘本图片（最多9张）' }}
+		</button>
+
+		<!-- 图片预览区 -->
+		<view class="img-list" v-if="images.length > 0">
+			<view class="img-item" v-for="(p, i) in images" :key="i">
+				<image :src="p" mode="aspectFill" class="thumb" @click="previewImg(i)" />
+				<text class="img-no">第{{ i + 1 }}张</text>
+			</view>
+		</view>
+
+		<!-- 识别结果：按图片分组 -->
+		<view class="results" v-if="pageResults.length > 0">
+			<view class="result-header">
+				<text>识别结果（{{ pageResults.length }} 张图）</text>
+			</view>
+
+			<view class="result-card" v-for="(page, idx) in pageResults" :key="idx">
+				<!-- 图片缩略图 + 编号 -->
+				<view class="card-header">
+					<image :src="images[page.index]" mode="aspectFill" class="card-thumb" />
+					<view class="card-info">
+						<text class="card-title">第 {{ page.index + 1 }} 张</text>
+						<text class="card-time">{{ page.elapse }}</text>
+						<text class="card-status" v-if="!page.success">❌ 识别失败</text>
+					</view>
+				</view>
+
+				<!-- 文字内容 -->
+				<view class="card-body" v-if="page.success">
+					<text class="line" v-for="(line, li) in page.lines" :key="li">
+						{{ line }}
+					</text>
+				</view>
+				<view class="card-body" v-else>
+					<text class="err">{{ page.error || '识别失败' }}</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 空状态 -->
+		<view class="empty" v-if="!processing && images.length === 0">
+			<text>点击上方按钮开始拍照或选择相册图片</text>
+		</view>
+	</view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue';
+import { OCR_BASE_URL, OCR_API_KEY } from '@/config';
+
+// ===== 类型 =====
+interface OCRDetail {
+	text: string;
+	score: number;
+	box: number[][];
+}
+
+interface PageResult {
+	index: number;
+	success: boolean;
+	lines: string[];
+	detail: OCRDetail[];
+	elapse: string;
+	error?: string;
+}
+
+// ===== 状态 =====
+const images = ref<string[]>([]);
+const pageResults = ref<PageResult[]>([]);
+const processing = ref(false);
+
+// ===== 选图 =====
+async function chooseImages(): Promise<string[]> {
+	return new Promise((resolve, reject) => {
+		uni.chooseImage({
+			count: 9,
+			sizeType: ['compressed'],
+			sourceType: ['album', 'camera'],
+			success: (res) => resolve(res.tempFilePaths as string[]),
+			fail: reject
+		});
+	});
+}
+
+// ===== 压缩 + base64 =====
+function fileToBase64(filePath: string): Promise<string> {
+	return new Promise((resolve, reject) => {
+		uni.compressImage({
+			src: filePath,
+			quality: 80,
+			compressedWidth: 1280,
+			success: (cmp) => {
+				uni.getFileSystemManager().readFile({
+					filePath: cmp.tempFilePath,
+					encoding: 'base64',
+					success: (r) => resolve('data:image/jpeg;base64,' + r.data),
+					fail: reject
+				});
+			},
+			fail: reject
+		});
+	});
+}
+
+// ===== 批量识别 =====
+async function batchOcr(b64List: string[]): Promise<any> {
+	return new Promise((resolve, reject) => {
+		uni.request({
+			url: `${OCR_BASE_URL}/ocr/batch`,
+			method: 'POST',
+			header: {
+				'Content-Type': 'application/json',
+				'X-API-Key': OCR_API_KEY
+			},
+			data: { images: b64List },
+			timeout: 60000,
+			success: (res: any) => {
+				if (res.statusCode === 200) resolve(res.data);
+				else reject(new Error(`HTTP ${res.statusCode}`));
+			},
+			fail: (err) => reject(err)
+		});
+	});
+}
+
+// ===== 主流程 =====
+async function onPick() {
+	try {
+		processing.value = true;
+		pageResults.value = [];
+
+		// 1. 选图
+		const paths = await chooseImages();
+		images.value = paths;
+
+		// 2. 逐张压缩转 base64
+		const b64List: string[] = [];
+		for (let i = 0; i < paths.length; i++) {
+			const b64 = await fileToBase64(paths[i]);
+			b64List.push(b64);
+		}
+
+		// 3. 批量识别
+		const data = await batchOcr(b64List);
+
+		if (data.success) {
+			// 按 index 排序
+			pageResults.value = data.results.sort((a: any, b: any) => a.index - b.index);
+		} else {
+			uni.showToast({ title: '识别失败', icon: 'none' });
+		}
+	} catch (e: any) {
+		uni.showToast({ title: '出错：' + (e.message || e.errMsg || '未知错误'), icon: 'none' });
+	} finally {
+		processing.value = false;
+	}
+}
+
+// ===== 预览图片 =====
+function previewImg(index: number) {
+	uni.previewImage({
+		current: index,
+		urls: images.value
+	});
+}
+</script>
+
+<style>
+.container {
+	padding: 30rpx;
+	min-height: 100vh;
+	background: #f5f5f5;
+}
+
+.header {
+	text-align: center;
+	margin-bottom: 30rpx;
+}
+
+.title {
+	font-size: 44rpx;
+	font-weight: bold;
+	color: #333;
+}
+
+.subtitle {
+	font-size: 26rpx;
+	color: #999;
+	margin-top: 8rpx;
+	display: block;
+}
+
+.pick-btn {
+	width: 100%;
+	height: 88rpx;
+	line-height: 88rpx;
+	background: #ff6a00;
+	color: #fff;
+	font-size: 32rpx;
+	border-radius: 16rpx;
+	margin-bottom: 30rpx;
+}
+
+.img-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16rpx;
+	margin-bottom: 30rpx;
+}
+
+.img-item {
+	position: relative;
+	width: 160rpx;
+	height: 160rpx;
+}
+
+.thumb {
+	width: 100%;
+	height: 100%;
+	border-radius: 12rpx;
+}
+
+.img-no {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	background: rgba(0, 0, 0, 0.6);
+	color: #fff;
+	font-size: 20rpx;
+	text-align: center;
+	padding: 4rpx 0;
+	border-radius: 0 0 12rpx 12rpx;
+}
+
+.results {
+	margin-top: 20rpx;
+}
+
+.result-header {
+	font-size: 30rpx;
+	font-weight: bold;
+	margin-bottom: 20rpx;
+	color: #333;
+}
+
+.result-card {
+	background: #fff;
+	border-radius: 16rpx;
+	padding: 24rpx;
+	margin-bottom: 20rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.card-header {
+	display: flex;
+	align-items: center;
+	margin-bottom: 16rpx;
+}
+
+.card-thumb {
+	width: 100rpx;
+	height: 100rpx;
+	border-radius: 10rpx;
+	margin-right: 20rpx;
+	flex-shrink: 0;
+}
+
+.card-info {
+	flex: 1;
+}
+
+.card-title {
+	font-size: 28rpx;
+	font-weight: 600;
+	color: #333;
+}
+
+.card-time {
+	font-size: 22rpx;
+	color: #bbb;
+	margin-left: 16rpx;
+}
+
+.card-status {
+	font-size: 24rpx;
+	color: #ff4d4f;
+}
+
+.card-body {
+	padding-top: 16rpx;
+	border-top: 1rpx solid #f0f0f0;
+}
+
+.line {
+	display: block;
+	font-size: 30rpx;
+	line-height: 1.8;
+	color: #222;
+}
+
+.err {
+	font-size: 26rpx;
+	color: #ff4d4f;
+}
+
+.empty {
+	text-align: center;
+	color: #bbb;
+	margin-top: 100rpx;
+	font-size: 28rpx;
+}
+</style>

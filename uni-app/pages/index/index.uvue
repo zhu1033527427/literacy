@@ -1,324 +1,592 @@
 <template>
-	<view class="container">
-		<!-- 标题 -->
-		<view class="header">
-			<text class="title">📖 绘本识字</text>
-			<text class="subtitle">拍多张绘本页面，自动识别文字</text>
-		</view>
+	<view class="page">
+		<!-- 装饰元素 -->
+		<view class="cloud cloud1"></view>
+		<view class="cloud cloud2"></view>
+		<view class="star star1"></view>
+		<view class="star star2"></view>
+		<view class="star star3"></view>
 
-		<!-- 选图按钮 -->
-		<button class="pick-btn" @click="onPick" :disabled="processing">
-			{{ processing ? `识别中...` : '📷 选择绘本图片（最多9张）' }}
-		</button>
-
-		<!-- 图片预览区 -->
-		<view class="img-list" v-if="images.length > 0">
-			<view class="img-item" v-for="(p, i) in images" :key="i">
-				<image :src="p" mode="aspectFill" class="thumb" @click="previewImg(i)" />
-				<text class="img-no">第{{ i + 1 }}张</text>
-			</view>
-		</view>
-
-		<!-- 识别结果：按图片分组 -->
-		<view class="results" v-if="pageResults.length > 0">
-			<view class="result-header">
-				<text>识别结果（{{ pageResults.length }} 张图）</text>
+		<view class="phone-container">
+			<!-- 头部 -->
+			<view class="header">
+				<text class="header-emoji">📚</text>
+				<text class="header-title">快乐绘本馆</text>
+				<text class="header-emoji">🌈</text>
+				<text class="header-desc">发现更多精彩故事，陪伴孩子快乐成长</text>
 			</view>
 
-			<view class="result-card" v-for="(page, idx) in pageResults" :key="idx">
-				<!-- 图片缩略图 + 编号 -->
-				<view class="card-header">
-					<image :src="images[page.index]" mode="aspectFill" class="card-thumb" />
-					<view class="card-info">
-						<text class="card-title">第 {{ page.index + 1 }} 张</text>
-						<text class="card-time">{{ page.elapse }}</text>
-						<text class="card-status" v-if="!page.success">❌ 识别失败</text>
+			<!-- 搜索框 -->
+			<view class="search-box">
+				<input class="search-input" placeholder="🔍 搜索绘本、作者、主题..." v-model="searchKeyword" @input="onSearch" />
+			</view>
+
+			<!-- 分类标签 -->
+			<scroll-view class="categories" scroll-x>
+				<view v-for="(cat, index) in categories" :key="index" class="category-tag"
+					:class="{ active: activeCategory === index }" @click="selectCategory(index)">
+					{{ cat }}
+				</view>
+			</scroll-view>
+
+			<!-- 绘本列表 -->
+			<view class="book-list" v-if="bookList.length > 0">
+				<view class="section-title">📖 热门推荐</view>
+
+				<view class="book-card" v-for="(book, index) in bookList" :key="index" @click="onBookClick(book)">
+					<image class="book-cover" :src="book.cover" mode="aspectFill" />
+					<view class="book-info">
+						<text class="book-title">{{ book.title }}</text>
+						<text class="book-author">作者：{{ book.author }}</text>
+						<view class="book-tags">
+							<text class="tag" v-for="(tag, t) in book.tags" :key="t">{{ tag }}</text>
+						</view>
+						<view class="book-rating">
+							<text>⭐</text>
+							<text>{{ book.rating }} ({{ book.reviews }}人评价)</text>
+						</view>
 					</view>
-				</view>
-
-				<!-- 文字内容 -->
-				<view class="card-body" v-if="page.success">
-					<text class="line" v-for="(line, li) in page.lines" :key="li">
-						{{ line }}
-					</text>
-				</view>
-				<view class="card-body" v-else>
-					<text class="err">{{ page.error || '识别失败' }}</text>
+					<view class="age-badge">{{ book.age }}</view>
 				</view>
 			</view>
+
+			<!-- 空白页 -->
+			<view class="empty-page" v-else>
+				<text class="empty-emoji">📭</text>
+				<text class="empty-title">暂无绘本</text>
+				<text class="empty-desc">换个关键词试试吧～</text>
+				<view class="empty-btn" @click="resetSearch">
+					<text>🔄 查看全部</text>
+				</view>
+			</view>
+
+			<!-- 底部占位，避免被导航栏遮挡 -->
+			<view class="bottom-spacer"></view>
 		</view>
 
-		<!-- 空状态 -->
-		<view class="empty" v-if="!processing && images.length === 0">
-			<text>点击上方按钮开始拍照或选择相册图片</text>
+		<!-- 底部导航 -->
+		<view class="bottom-nav">
+			<view class="nav-item" :class="{ active: activeNav === 0 }" @click="switchNav(0)">
+				<text class="nav-icon">🏠</text>
+				<text class="nav-text">首页</text>
+			</view>
+			<view class="nav-item" :class="{ active: activeNav === 1 }" @click="switchNav(1)">
+				<text class="nav-icon">📚</text>
+				<text class="nav-text">书架</text>
+			</view>
+			<view class="nav-item" :class="{ active: activeNav === 2 }" @click="switchNav(2)">
+				<text class="nav-icon">❤️</text>
+				<text class="nav-text">收藏</text>
+			</view>
+			<view class="nav-item" :class="{ active: activeNav === 3 }" @click="switchNav(3)">
+				<text class="nav-icon">👤</text>
+				<text class="nav-text">我的</text>
+			</view>
 		</view>
 	</view>
 </template>
 
-<script setup lang="ts">
-	import { ref } from 'vue'
-	import { OCR_BASE_URL, OCR_API_KEY } from '@/config'
-
-	// ===== 类型 =====
-	interface OCRDetail {
-		text : string
-		score : number
-		box : number[][]
-	}
-
-	interface PageResult {
-		index : number
-		success : boolean
-		lines : string[]
-		detail : OCRDetail[]
-		elapse : string
-		error ?: string
-	}
-
-	// ===== 状态 =====
-	const images = ref<string[]>([])
-	const pageResults = ref<PageResult[]>([])
-	const processing = ref(false)
-
-	// ===== 选图 =====
-	async function chooseImages() : Promise<string[]> {
-		return new Promise((resolve, reject) => {
-			uni.chooseImage({
-				count: 9,
-				sizeType: ['compressed'],
-				sourceType: ['album', 'camera'],
-				success: (res) => resolve(res.tempFilePaths as string[]),
-				fail: reject
-			})
-		})
-	}
-
-	// ===== 压缩 + base64 =====
-	function fileToBase64(filePath : string) : Promise<string> {
-		return new Promise((resolve, reject) => {
-			uni.compressImage({
-				src: filePath,
-				quality: 80,
-				compressedWidth: 1280,
-				success: (cmp) => {
-					uni.getFileSystemManager().readFile({
-						filePath: cmp.tempFilePath,
-						encoding: 'base64',
-						success: (r) => resolve('data:image/jpeg;base64,' + r.data),
-						fail: reject
-					})
-				},
-				fail: reject
-			})
-		})
-	}
-
-	// ===== 批量识别 =====
-	async function batchOcr(b64List : string[]) : Promise<any> {
-		return new Promise((resolve, reject) => {
-			uni.request({
-				url: `${OCR_BASE_URL}/ocr/batch`,
-				method: 'POST',
-				header: {
-					'Content-Type': 'application/json',
-					'X-API-Key': OCR_API_KEY
-				},
-				data: { images: b64List },
-				timeout: 60000,
-				success: (res : any) => {
-					if (res.statusCode === 200) resolve(res.data)
-					else reject(new Error(`HTTP ${res.statusCode}`))
-				},
-				fail: (err) => reject(err)
-			})
-		})
-	}
-
-	// ===== 主流程 =====
-	async function onPick() {
-		try {
-			processing.value = true
-			pageResults.value = []
-
-			// 1. 选图
-			const paths = await chooseImages()
-			images.value = paths
-
-			// 2. 逐张压缩转 base64
-			const b64List : string[] = []
-			for (let i = 0; i < paths.length; i++) {
-				const b64 = await fileToBase64(paths[i])
-				b64List.push(b64)
+<script>
+	export default {
+		data() {
+			return {
+				searchKeyword: '',
+				activeCategory: 0,
+				activeNav: 0,
+				categories: ['全部', '童话故事', '动物世界', '科学探索', '情绪管理', '启蒙认知'],
+				allBooks: [
+					{
+						title: '小王子历险记',
+						author: '圣埃克苏佩里',
+						cover: 'https://via.placeholder.com/80x100/FF6B9D/FFFFFF?text=小王子',
+						tags: ['童话', '冒险'],
+						rating: 4.9,
+						reviews: '2.3k',
+						age: '3-6岁'
+					},
+					{
+						title: '森林里的音乐会',
+						author: '宫西达也',
+						cover: 'https://via.placeholder.com/80x100/4ECDC4/FFFFFF?text=音乐会',
+						tags: ['动物', '音乐'],
+						rating: 4.8,
+						reviews: '1.8k',
+						age: '2-5岁'
+					},
+					{
+						title: '太空探险队',
+						author: '李欧·李奥尼',
+						cover: 'https://via.placeholder.com/80x100/FFD93D/FFFFFF?text=太空',
+						tags: ['科学', '探索'],
+						rating: 4.7,
+						reviews: '1.5k',
+						age: '4-8岁'
+					},
+					{
+						title: '彩虹色的花',
+						author: '麦克·格雷涅茨',
+						cover: 'https://via.placeholder.com/80x100/A8E6CF/FFFFFF?text=彩虹花',
+						tags: ['分享', '友爱'],
+						rating: 5.0,
+						reviews: '3.1k',
+						age: '2-6岁'
+					},
+					{
+						title: '小熊宝宝系列',
+						author: '佐佐木洋子',
+						cover: 'https://via.placeholder.com/80x100/FF8B94/FFFFFF?text=小熊',
+						tags: ['习惯养成', '认知'],
+						rating: 4.9,
+						reviews: '4.2k',
+						age: '0-3岁'
+					}
+				],
+				bookList: []
 			}
-
-			// 3. 批量识别
-			const data = await batchOcr(b64List)
-
-			if (data.success) {
-				// 按 index 排序
-				pageResults.value = data.results.sort((a : any, b : any) => a.index - b.index)
-			} else {
-				uni.showToast({ title: '识别失败', icon: 'none' })
+		},
+		onLoad() {
+			this.bookList = [...this.allBooks]
+		},
+		methods: {
+			onSearch() {
+				const keyword = this.searchKeyword.trim().toLowerCase()
+				if (!keyword) {
+					this.bookList = [...this.allBooks]
+					return
+				}
+				this.bookList = this.allBooks.filter(
+					book =>
+						book.title.toLowerCase().includes(keyword) ||
+						book.author.toLowerCase().includes(keyword) ||
+						book.tags.some(tag => tag.toLowerCase().includes(keyword))
+				)
+			},
+			selectCategory(index) {
+				this.activeCategory = index
+				// 这里可以根据分类筛选，示例中简单重置
+				if (index === 0) {
+					this.bookList = [...this.allBooks]
+				} else {
+					const cat = this.categories[index]
+					this.bookList = this.allBooks.filter(book =>
+						book.tags.some(tag => tag.includes(cat.slice(0, 2)))
+					)
+					if (this.bookList.length === 0) {
+						this.bookList = []
+					}
+				}
+				this.searchKeyword = ''
+			},
+			resetSearch() {
+				this.searchKeyword = ''
+				this.activeCategory = 0
+				this.bookList = [...this.allBooks]
+			},
+			onBookClick(book) {
+				uni.showToast({ title: `打开：${book.title}`, icon: 'none' })
+			},
+			switchNav(index) {
+				this.activeNav = index
 			}
-		} catch (e : any) {
-			uni.showToast({ title: '出错：' + (e.message || e.errMsg || '未知错误'), icon: 'none' })
-		} finally {
-			processing.value = false
 		}
-	}
-
-	// ===== 预览图片 =====
-	function previewImg(index : number) {
-		uni.previewImage({
-			current: index,
-			urls: images.value
-		})
 	}
 </script>
 
-<style>
-	.container {
-		padding: 30rpx;
+<style lang="scss" scoped>
+	.page {
 		min-height: 100vh;
-		background: #f5f5f5;
-	}
-
-	.header {
-		text-align: center;
-		margin-bottom: 30rpx;
-	}
-
-	.title {
-		font-size: 44rpx;
-		font-weight: bold;
-		color: #333;
-	}
-
-	.subtitle {
-		font-size: 26rpx;
-		color: #999;
-		margin-top: 8rpx;
-		display: block;
-	}
-
-	.pick-btn {
-		width: 100%;
-		height: 88rpx;
-		line-height: 88rpx;
-		background: #ff6a00;
-		color: #fff;
-		font-size: 32rpx;
-		border-radius: 16rpx;
-		margin-bottom: 30rpx;
-	}
-
-	.img-list {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 16rpx;
-		margin-bottom: 30rpx;
-	}
-
-	.img-item {
+		background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 50%, #fd79a8 100%);
 		position: relative;
-		width: 160rpx;
-		height: 160rpx;
+		overflow-x: hidden;
 	}
 
-	.thumb {
-		width: 100%;
-		height: 100%;
-		border-radius: 12rpx;
+	/* 装饰云朵 */
+	.cloud {
+		position: fixed;
+		background: #ffffff;
+		border-radius: 50px;
+		opacity: 0.8;
+		z-index: 0;
 	}
 
-	.img-no {
+	.cloud::before,
+	.cloud::after {
+		content: '';
 		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		background: rgba(0, 0, 0, 0.6);
-		color: #fff;
-		font-size: 20rpx;
+		background: #ffffff;
+		border-radius: 50%;
+	}
+
+	.cloud1 {
+		width: 100px;
+		height: 40px;
+		top: 20px;
+		left: -100px;
+		animation: floatLeft 20s infinite ease-in-out;
+	}
+
+	.cloud1::before {
+		width: 50px;
+		height: 50px;
+		top: -25px;
+		left: 15px;
+	}
+
+	.cloud1::after {
+		width: 60px;
+		height: 60px;
+		top: -30px;
+		left: 40px;
+	}
+
+	.cloud2 {
+		width: 80px;
+		height: 35px;
+		top: 80px;
+		right: -80px;
+		animation: floatRight 20s infinite ease-in-out;
+	}
+
+	.cloud2::before {
+		width: 40px;
+		height: 40px;
+		top: -20px;
+		left: 10px;
+	}
+
+	.cloud2::after {
+		width: 50px;
+		height: 50px;
+		top: -25px;
+		left: 30px;
+	}
+
+	@keyframes floatLeft {
+
+		0%,
+		100% {
+			transform: translateX(0);
+		}
+
+		50% {
+			transform: translateX(calc(100vw + 200px));
+		}
+	}
+
+	@keyframes floatRight {
+
+		0%,
+		100% {
+			transform: translateX(0);
+		}
+
+		50% {
+			transform: translateX(calc(-100vw - 200px));
+		}
+	}
+
+	/* 装饰星星 */
+	.star {
+		position: fixed;
+		font-size: 20px;
+		z-index: 0;
+		animation: twinkle 3s infinite;
+	}
+
+	.star1 {
+		top: 100px;
+		left: 50px;
+	}
+
+	.star2 {
+		top: 200px;
+		right: 30px;
+		animation-delay: 1s;
+	}
+
+	.star3 {
+		top: 300px;
+		left: 80px;
+		animation-delay: 2s;
+	}
+
+	@keyframes twinkle {
+
+		0%,
+		100% {
+			opacity: 1;
+			transform: scale(1);
+		}
+
+		50% {
+			opacity: 0.5;
+			transform: scale(0.8);
+		}
+	}
+
+	/* 手机容器 */
+	.phone-container {
+		max-width: 375px;
+		margin: 20px auto;
+		background: #ffffff;
+		border-radius: 30px;
+		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+		overflow: hidden;
+		position: relative;
+		z-index: 1;
+		min-height: calc(100vh - 40px);
+	}
+
+	/* 头部 */
+	.header {
+		background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+		padding: 30px 20px 20px;
 		text-align: center;
-		padding: 4rpx 0;
-		border-radius: 0 0 12rpx 12rpx;
-	}
-
-	.results {
-		margin-top: 20rpx;
-	}
-
-	.result-header {
-		font-size: 30rpx;
-		font-weight: bold;
-		margin-bottom: 20rpx;
-		color: #333;
-	}
-
-	.result-card {
-		background: #fff;
-		border-radius: 16rpx;
-		padding: 24rpx;
-		margin-bottom: 20rpx;
-		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.06);
-	}
-
-	.card-header {
+		border-radius: 0 0 30px 30px;
 		display: flex;
+		flex-direction: column;
 		align-items: center;
-		margin-bottom: 16rpx;
+		gap: 8px;
 	}
 
-	.card-thumb {
-		width: 100rpx;
-		height: 100rpx;
-		border-radius: 10rpx;
-		margin-right: 20rpx;
+	.header-emoji {
+		font-size: 24px;
+		animation: bounce 2s infinite;
+	}
+
+	.header-title {
+		color: #ffffff;
+		font-size: 28px;
+		font-weight: bold;
+		text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+	}
+
+	.header-desc {
+		color: #ffeaa7;
+		font-size: 14px;
+	}
+
+	@keyframes bounce {
+
+		0%,
+		100% {
+			transform: translateY(0);
+		}
+
+		50% {
+			transform: translateY(-10px);
+		}
+	}
+
+	/* 搜索框 */
+	.search-box {
+		padding: 20px;
+		background: #f8f9fa;
+	}
+
+	.search-input {
+		width: 100%;
+		padding: 12px 20px;
+		border: 3px solid #fdcb6e;
+		border-radius: 25px;
+		font-size: 14px;
+		outline: none;
+		background: #ffffff;
+	}
+
+	/* 分类标签 */
+	.categories {
+		display: flex;
+		gap: 10px;
+		padding: 0 20px 20px;
+		background: #f8f9fa;
+		white-space: nowrap;
+	}
+
+	.category-tag {
+		padding: 8px 16px;
+		background: linear-gradient(135deg, #fd79a8, #e84393);
+		color: #ffffff;
+		border-radius: 20px;
+		font-size: 12px;
+		cursor: pointer;
+		box-shadow: 0 4px 8px rgba(232, 67, 147, 0.3);
 		flex-shrink: 0;
 	}
 
-	.card-info {
+	.category-tag.active {
+		background: linear-gradient(135deg, #00b894, #00cec9);
+	}
+
+	/* 绘本列表 */
+	.book-list {
+		padding: 20px;
+	}
+
+	.section-title {
+		font-size: 18px;
+		color: #2d3436;
+		margin-bottom: 15px;
+	}
+
+	.book-card {
+		background: #ffffff;
+		border-radius: 15px;
+		padding: 15px;
+		margin-bottom: 15px;
+		display: flex;
+		gap: 15px;
+		box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+		position: relative;
+		overflow: hidden;
+	}
+
+	.book-card::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 4px;
+		background: linear-gradient(90deg, #fd79a8, #fdcb6e, #6c5ce7, #00b894);
+	}
+
+	.book-cover {
+		width: 80px;
+		height: 100px;
+		border-radius: 10px;
+		flex-shrink: 0;
+		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+	}
+
+	.book-info {
 		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
 	}
 
-	.card-title {
-		font-size: 28rpx;
-		font-weight: 600;
-		color: #333;
+	.book-title {
+		font-size: 16px;
+		font-weight: bold;
+		color: #2d3436;
 	}
 
-	.card-time {
-		font-size: 22rpx;
-		color: #bbb;
-		margin-left: 16rpx;
+	.book-author {
+		font-size: 12px;
+		color: #636e72;
 	}
 
-	.card-status {
-		font-size: 24rpx;
-		color: #ff4d4f;
+	.book-tags {
+		display: flex;
+		gap: 5px;
+		flex-wrap: wrap;
 	}
 
-	.card-body {
-		padding-top: 16rpx;
-		border-top: 1rpx solid #f0f0f0;
+	.tag {
+		padding: 3px 8px;
+		background: #dfe6e9;
+		border-radius: 10px;
+		font-size: 10px;
+		color: #2d3436;
 	}
 
-	.line {
-		display: block;
-		font-size: 30rpx;
-		line-height: 1.8;
-		color: #222;
+	.book-rating {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		font-size: 12px;
+		color: #fdcb6e;
 	}
 
-	.err {
-		font-size: 26rpx;
-		color: #ff4d4f;
+	.age-badge {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+		background: linear-gradient(135deg, #00b894, #00cec9);
+		color: #ffffff;
+		padding: 4px 8px;
+		border-radius: 10px;
+		font-size: 10px;
+		font-weight: bold;
 	}
 
-	.empty {
-		text-align: center;
-		color: #bbb;
-		margin-top: 100rpx;
-		font-size: 28rpx;
+	/* 空白页 */
+	.empty-page {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 80px 20px;
+		gap: 12px;
+	}
+
+	.empty-emoji {
+		font-size: 64px;
+		animation: bounce 2s infinite;
+	}
+
+	.empty-title {
+		font-size: 20px;
+		font-weight: bold;
+		color: #636e72;
+	}
+
+	.empty-desc {
+		font-size: 14px;
+		color: #b2bec3;
+	}
+
+	.empty-btn {
+		margin-top: 20px;
+		padding: 12px 32px;
+		background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+		color: #ffffff;
+		border-radius: 25px;
+		font-size: 14px;
+		box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+	}
+
+	/* 底部占位 */
+	.bottom-spacer {
+		height: 80px;
+	}
+
+	/* 底部导航 */
+	.bottom-nav {
+		position: fixed;
+		bottom: 0;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 100%;
+		max-width: 375px;
+		background: #ffffff;
+		display: flex;
+		justify-content: space-around;
+		padding: 10px 0;
+		box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+		border-radius: 30px 30px 0 0;
+		z-index: 10;
+	}
+
+	.nav-item {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 4px;
+	}
+
+	.nav-icon {
+		font-size: 24px;
+	}
+
+	.nav-text {
+		font-size: 10px;
+		color: #636e72;
+	}
+
+	.nav-item.active .nav-text {
+		color: #6c5ce7;
+		font-weight: bold;
 	}
 </style>
