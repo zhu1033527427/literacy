@@ -1,0 +1,12 @@
+{
+  "name": "literacy",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@12.15.0",
+  "scripts": {
+    "ocr:install": "conda activate ocr-lab && python -m pip install -r services/ocr-lab/requirements.txt",
+    "ocr:cpolar": "cpolar http 8000",
+    "ocr:dev": "conda run -n ocr-lab --live-stream bash -c 'cd services/ocr-lab && python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload'",
+    "ocr:test": "cd services/ocr-lab && python test_ocr.py"
+  }
+}

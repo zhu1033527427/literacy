@@ -1,0 +1,102 @@
+<template>
+	<view class="step-flow" :class="{ 'is-readonly': readonly }">
+		<view v-for="item in innerSteps" :key="item.key" class="step-dot" :class="{ 'step-on': item.key === stage }"
+			:hover-class="readonly ? '' : 'step-hover'" @click="onTap(item)">
+			<text class="step-text" :class="{ 'step-text-on': item.key === stage }">
+				{{ item.label }}
+			</text>
+		</view>
+	</view>
+</template>
+
+<script setup lang="ts">
+	import { computed } from 'vue'
+
+	export interface StepItem {
+		key : string
+		label : string
+	}
+
+	const props = withDefaults(defineProps<{
+		stage ?: string
+		steps ?: StepItem[]
+		readonly ?: boolean
+	}>(), {
+		stage: 'learn',
+		steps: () => [
+			{ key: 'learn', label: '学' },
+			{ key: 'write', label: '写' },
+			{ key: 'recognize', label: '认' }
+		],
+		readonly: false
+	})
+
+	const emit = defineEmits<{
+		(e : 'change', key : string) : void
+	}>()
+
+	const innerSteps = computed(() => props.steps || [])
+
+	function onTap(item : StepItem) {
+		// 只读模式不响应
+		if (props.readonly) return
+		// 点当前已激活的也不重复抛
+		if (item.key === props.stage) return
+		emit('change', item.key)
+	}
+</script>
+
+<style scoped>
+	.step-flow {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.step-dot {
+		/* 用 rpx，跨端自适配；小程序/App 下 view 不默认 flex，必须显式声明 */
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		box-sizing: border-box;
+		width: 52rpx;
+		height: 52rpx;
+		margin-left: 12rpx;
+		border-radius: 50%;
+		background-color: #f2f9f1;
+		border: 2rpx solid #c9dfcb;
+		transition: transform 0.15s ease;
+	}
+
+	/* 首个不加左间距 */
+	.step-dot:first-child {
+		margin-left: 0;
+	}
+
+	.step-hover {
+		transform: scale(0.92);
+		opacity: 0.85;
+	}
+
+	.step-on {
+		background-image: linear-gradient(135deg, #ffc15e 0%, #ff9a6b 100%);
+		border-color: #ffb74d;
+		box-shadow: 0 2rpx 8rpx rgba(255, 154, 107, 0.35);
+	}
+
+	.step-text {
+		font-size: 24rpx;
+		color: #8aa893;
+		line-height: 1;
+	}
+
+	.step-text-on {
+		color: #ffffff;
+		font-weight: bold;
+	}
+
+	/* 只读态：去掉手感和阴影，纯展示 */
+	.is-readonly .step-dot {
+		transition: none;
+	}
+</style>

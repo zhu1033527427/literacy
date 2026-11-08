@@ -1,0 +1,610 @@
+<template>
+	<view class="page">
+		<dec></dec>
+		<view class="container">
+			<!-- 空状态 -->
+			<view class="empty" v-if="!processing && results.length === 0">
+				<text>点击下方按钮开始拍照或选择相册图片</text>
+			</view>
+
+			<view class="img-list" v-if="results.length > 0">
+				<view v-for="(p, i) in results" :key="p.id" class="swipe-item">
+					<!-- 删除按钮（底层） -->
+					<view class="card-delete-btn" @tap.stop="deleteCard(i)">
+						<text>删除</text>
+					</view>
+
+					<!-- 卡片内容（上层，跟手滑动） -->
+					<view class="img-card" :style="cardSlideStyle(p)" @touchstart="touchStart($event, i)"
+						@touchmove="touchMove($event, i)" @touchend="touchEnd($event, i)">
+						<view class="img-slide-wrapper">
+							<view class="img-main" @tap="previewImg(p.id)">
+								<image :src="p.id" mode="aspectFill" class="thumb" />
+								<view class="img-no-overlay">第{{ i + 1 }}张</view>
+								<view v-if="!p.success && !p.error" class="img-loading-overlay">识别中...</view>
+								<view v-else-if="p.error" class="img-error-overlay">失败</view>
+							</view>
+						</view>
+						<view class="char-box">
+							<view class="char-row">
+								<template v-if="p.chars && p.chars.length">
+									<view v-for="(char, charIdx) in p.chars" :key="charIdx" class="mi-cell"
+										@longpress="deleteChar(i, charIdx)">
+										<text class="mi-char">{{ char }}</text>
+										<view class="mi-grid-bg"></view>
+									</view>
+								</template>
+								<view v-else-if="p.success" class="empty-line">（无文字）</view>
+
+								<view v-if="p.success && !p.error" class="add-cell" @tap="showAddDialog(i)">
+									<text class="add-icon">+</text>
+								</view>
+							</view>
+						</view>
+					</view>
+				</view>
+			</view>
+		</view>
+
+		<view class="bottom-placeholder" v-if="results.length > 0"></view>
+
+		<view class="bottom-bar">
+			<button class="pick-btn" @tap="onPick" :disabled="processing">
+				{{ processing ? '...' : ' 选择绘本图片（最多9张）' }}
+			</button>
+		</view>
+	</view>
+</template>
+
+<script setup lang="ts">
+	import { ref } from 'vue';
+	import { BASE_URL, API_KEY } from '@literacy/shared-config';
+
+	import { onUnload } from '@dcloudio/uni-app';
+	import { useOcrStore } from '@/stores/ocr'; // 注意路径根据你的项目调整
+
+	const ocrStore = useOcrStore();
+
+	onUnload(() => {
+		// 只汇总识别成功的图片
+		const validResults = results.value.filter(
+			r => r.success && r.chars && r.chars.length > 0
+		);
+
+		if (validResults.length === 0) return;
+
+		// 构建汇总数据
+		const summary = validResults.map(r => ({
+			id: r.id,
+			chars: r.chars.join('') // 把单个字符数组合并成字符串
+		}));
+
+		// 存入 Pinia + 自动同步到本地存储
+		ocrStore.setOcrResult(summary);
+
+		console.log('OCR页面退出，已保存汇总数据：', summary);
+	});
+
+	interface OCRDetail {
+		text : string;
+		score : number;
+		box : number[][];
+	}
+
+	const DELETE_BTN_WIDTH = 165; // rpx，与CSS .card-delete-btn width保持一致
+
+	interface PageResult {
+		id : string;
+		index : number;
+		success : boolean;
+		chars : string[];
+		detail : OCRDetail[];
+		elapse : string;
+		error ?: string;
+		offsetX : number;
+		animating : boolean;
+	}
+
+	interface ChooseImageResult {
+		tempFilePaths : string[];
+		tempFiles : Array<{ path : string; size : number; name ?: string }>;
+	}
+
+	const processing = ref(false);
+	const results = ref<PageResult[]>([]);
+	const progress = ref('');
+
+	function cardSlideStyle(p : PageResult) : Record<string, string> {
+		return {
+			transform: 'translateX(' + p.offsetX + 'rpx)',
+			transition: p.animating ? 'transform 0.28s ease' : 'none'
+		};
+	}
+
+	// ===== 图片选择与OCR =====
+
+	function chooseImages() : Promise<string[]> {
+		return new Promise((resolve, reject) => {
+			uni.chooseImage({
+				count: 9,
+				sizeType: ['compressed'],
+				sourceType: ['album', 'camera'],
+				success: (res : ChooseImageResult) => resolve(res.tempFilePaths),
+				fail: (err : any) => reject(err)
+			});
+		});
+	}
+
+	function fileToBase64(filePath : string) : Promise<string> {
+		return new Promise((resolve, reject) => {
+			uni.compressImage({
+				src: filePath,
+				quality: 80,
+				compressedWidth: 1280,
+				success: (cmp) => {
+					uni.getFileSystemManager().readFile({
+						filePath: cmp.tempFilePath,
+						encoding: 'base64',
+						success: (r) => resolve('data:image/jpeg;base64,' + r.data),
+						fail: reject
+					});
+				},
+				fail: reject
+			});
+		});
+	}
+
+	function singleOcr(base64Str : string) : Promise<{ elapse : string; lines : string[] }> {
+		return new Promise((resolve, reject) => {
+			uni.request({
+				url: BASE_URL + '/ocr/single',
+				method: 'POST',
+				header: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+				data: { image_base64: base64Str },
+				timeout: 30000,
+				success: (res : any) => {
+					const data = res.data;
+					if (res.statusCode === 200 && data?.success) {
+						resolve({ elapse: data.elapse || '0.8s', lines: data.lines || [] });
+					} else {
+						reject(new Error(data?.error || '识别失败'));
+					}
+				},
+				fail: (err : any) => reject(err)
+			});
+		});
+	}
+
+	async function processConcurrently(paths : string[], startIndex = 0) {
+		const total = paths.length;
+		let completed = 0;
+
+		// 先添加占位
+		paths.forEach((path, offset) => {
+			const index = startIndex + offset;
+			results.value.push({
+				id: path,
+				index,
+				success: false,
+				chars: [],
+				detail: [],
+				elapse: '',
+				error: undefined,
+				offsetX: 0,
+				animating: false
+			});
+		});
+
+		// 并发识别
+		paths.forEach((path, offset) => {
+			const index = startIndex + offset;
+			fileToBase64(path)
+				.then((base64) => singleOcr(base64))
+				.then((result) => {
+					completed++;
+					progress.value = '(' + completed + '/' + total + ')';
+					const target = results.value.find((r) => r.id === path && r.index === index);
+					if (target) {
+						target.success = true;
+						target.chars = result.lines.join('').split('');
+						target.elapse = result.elapse;
+					}
+				})
+				.catch((error : any) => {
+					completed++;
+					progress.value = '(' + completed + '/' + total + ')';
+					const target = results.value.find((r) => r.id === path && r.index === index);
+					if (target) {
+						target.success = false;
+						target.error = error.message;
+					}
+				});
+		});
+	}
+
+	async function onPick() {
+		try {
+			processing.value = true;
+			progress.value = '';
+			const paths = await chooseImages();
+			if (!paths.length) return;
+			progress.value = '开始处理 ' + paths.length + ' 张图片...';
+			const startIndex = results.value.length;
+			await processConcurrently(paths, startIndex);
+		} catch (e : any) {
+			uni.showToast({ title: '出错：' + (e.message || e.errMsg || '未知错误'), icon: 'none' });
+		} finally {
+			processing.value = false;
+		}
+	}
+
+	function previewImg(url : string) {
+		uni.previewImage({ urls: [url] });
+	}
+
+	// ===== 左滑删除手势 =====
+
+	let touchData : {
+		startX : number;
+		startY : number;
+		index : number;
+		isHorizontal : boolean | null;
+	} | null = null;
+
+	function touchStart(e : any, index : number) {
+		// 互斥：打开新卡时收起其他已展开的卡片
+		for (let i = 0; i < results.value.length; i++) {
+			const r = results.value[i];
+			if (i !== index && r.offsetX !== 0) {
+				r.animating = true;
+				r.offsetX = 0;
+			}
+		}
+
+		touchData = {
+			startX: e.touches[0].clientX,
+			startY: e.touches[0].clientY,
+			index,
+			isHorizontal: null
+		};
+	}
+
+	function touchMove(e : any, index : number) {
+		if (!touchData || touchData.index !== index) return;
+
+		const moveX = e.touches[0].clientX - touchData.startX;
+		const moveY = e.touches[0].clientY - touchData.startY;
+
+		// 判断滑动方向
+		if (touchData.isHorizontal === null) {
+			if (Math.abs(moveX) < 8 && Math.abs(moveY) < 8) return;
+			touchData.isHorizontal = Math.abs(moveX) >= Math.abs(moveY);
+		}
+
+		// 纵向滑动：完全放行，不做任何操作
+		if (touchData.isHorizontal === false) return;
+
+		const item = results.value[index];
+		if (!item) return;
+
+		// 右滑（moveX > 0）：直接归零，不允许拉出空白
+		if (moveX > 0) {
+			item.animating = false;
+			item.offsetX = 0;
+			return;
+		}
+
+		// 左滑：px转rpx（1px ≈ 2rpx），限制最大滑动距离
+		let offset = moveX * 2;
+		if (offset < -DELETE_BTN_WIDTH) offset = -DELETE_BTN_WIDTH;
+
+		item.animating = false;
+		item.offsetX = offset;
+	}
+
+	function touchEnd(e : any, index : number) {
+		if (!touchData || touchData.index !== index) return;
+		const wasHorizontal = touchData.isHorizontal;
+		touchData = null;
+
+		const item = results.value[index];
+		if (!item) return;
+
+		// 纵向滑动：不做任何事
+		if (wasHorizontal === false) return;
+
+		item.animating = true;
+		// 左滑超过一半宽度 => 展开，否则回弹
+		if (item.offsetX <= -DELETE_BTN_WIDTH / 2) {
+			item.offsetX = -DELETE_BTN_WIDTH;
+		} else {
+			item.offsetX = 0;
+		}
+	}
+
+	function deleteCard(imgIndex : number) {
+		const target = results.value[imgIndex];
+		if (!target) return;
+		uni.showModal({
+			title: '提示',
+			content: '确定删除「第' + (imgIndex + 1) + '张」及其识别结果吗？',
+			success: (res) => {
+				if (res.confirm) {
+					results.value.splice(imgIndex, 1);
+					uni.vibrateShort();
+				} else if (target) {
+					target.animating = true;
+					target.offsetX = 0;
+				}
+			}
+		});
+	}
+
+	function deleteChar(imgIndex : number, charIdx : number) {
+		const target = results.value[imgIndex];
+		if (!target || !target.chars[charIdx]) return;
+		uni.showModal({
+			title: '提示',
+			content: '确定删除「' + target.chars[charIdx] + '」？',
+			success: (res) => {
+				if (res.confirm) {
+					target.chars.splice(charIdx, 1);
+					uni.vibrateShort();
+				}
+			}
+		});
+	}
+
+	function showAddDialog(imgIndex : number) {
+		const target = results.value[imgIndex];
+		if (!target) return;
+		uni.showModal({
+			title: '添加文字',
+			content: '',
+			editable: true,
+			placeholderText: '输入要添加的字',
+			success: (res) => {
+				if (res.confirm && res.content) {
+					target.chars.push(...res.content.split(''));
+				}
+			}
+		});
+	}
+</script>
+
+<style scoped>
+	.page {
+		position: relative;
+		width: 100%;
+		height: 100vh;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+		background: rgba(235, 214, 187, 0.75);
+	}
+
+	.container {
+		padding: 20px 20px 0;
+	}
+
+	.empty {
+		margin-top: 40vh;
+		text-align: center;
+		font-size: 28rpx;
+		color: #705742;
+	}
+
+	.img-list {
+		display: flex;
+		flex-direction: column;
+		padding: 16rpx;
+	}
+
+	/* 滑动容器 */
+	.swipe-item {
+		position: relative;
+		margin-bottom: 28rpx;
+		border-radius: 14rpx;
+		overflow: hidden;
+	}
+
+	/* 删除按钮（底层，绝对定位在右侧） */
+	.card-delete-btn {
+		position: absolute;
+		right: 0;
+		top: 0;
+		bottom: 0;
+		width: 155rpx;
+		background: #ff4444;
+		color: #fff;
+		font-size: 28rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1;
+		border-radius: 14rpx;
+	}
+
+	/* 卡片主体（上层，通过translateX滑动） */
+	.img-card {
+		position: relative;
+		z-index: 2;
+		background: rgb(248, 239, 227);
+		border-radius: 14rpx;
+		padding: 16rpx 18rpx;
+		display: flex;
+		flex-direction: row;
+		align-items: flex-start;
+		will-change: transform;
+		box-shadow: 0 2rpx 8rpx rgba(120, 94, 64, 0.06);
+	}
+
+	/* 左侧图片 */
+	.img-slide-wrapper {
+		width: 136rpx;
+		height: 98rpx;
+		flex-shrink: 0;
+		margin-right: 16rpx;
+		border-radius: 8rpx;
+		overflow: hidden;
+	}
+
+	.img-main {
+		width: 100%;
+		height: 100%;
+		position: relative;
+	}
+
+	.thumb {
+		width: 100%;
+		height: 100%;
+		border-radius: 8rpx;
+		display: block;
+	}
+
+	.img-no-overlay {
+		position: absolute;
+		top: 4rpx;
+		left: 6rpx;
+		z-index: 2;
+		font-size: 20rpx;
+		color: #fff;
+		text-shadow: 0 1rpx 2rpx rgba(0, 0, 0, 0.6);
+		background: rgba(46, 37, 26, 0.58);
+		padding: 2rpx 8rpx;
+		border-radius: 4rpx;
+	}
+
+	.img-loading-overlay {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		z-index: 2;
+		font-size: 20rpx;
+		color: #fff;
+		background: rgba(108, 89, 66, 0.66);
+		text-align: center;
+		padding: 3rpx 0;
+	}
+
+	.img-error-overlay {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		z-index: 2;
+		font-size: 20rpx;
+		color: #fff;
+		background: rgba(211, 56, 44, 0.78);
+		text-align: center;
+		padding: 3rpx 0;
+	}
+
+	/* 右侧米字格 */
+	.char-box {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.char-row {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+	}
+
+	.mi-cell {
+		width: 54rpx;
+		height: 58rpx;
+		margin: 3rpx;
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.mi-grid-bg {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 1;
+		border: 1rpx solid #b8a692;
+		background:
+			linear-gradient(to right, transparent 48%, #d6c8b6 48%, #d6c8b6 52%, transparent 52%),
+			linear-gradient(to bottom, transparent 47%, #d6c8b6 47%, #d6c8b6 53%, transparent 53%),
+			linear-gradient(45deg, transparent 48%, #e2d6c6 48%, #e2d6c6 52%, transparent 52%),
+			linear-gradient(-45deg, transparent 48%, #e2d6c6 48%, #e2d6c6 52%, transparent 52%);
+		background-color: rgba(251, 246, 237, 0.04);
+	}
+
+	.mi-char {
+		position: relative;
+		z-index: 2;
+		font-size: 26rpx;
+		color: #33281d;
+	}
+
+	.add-cell {
+		width: 50rpx;
+		height: 54rpx;
+		margin: 3rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 2rpx dashed #b8a692;
+		border-radius: 4rpx;
+		flex-shrink: 0;
+	}
+
+	.add-icon {
+		font-size: 30rpx;
+		color: #b8a692;
+	}
+
+	.empty-line {
+		padding: 6rpx;
+		color: #b0a090;
+		font-size: 20rpx;
+	}
+
+	.bottom-placeholder {
+		height: 150rpx;
+	}
+
+	.bottom-bar {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		padding: 20rpx 30rpx 40rpx;
+		background: linear-gradient(to top, rgba(242, 219, 175, 0.93), rgba(232, 204, 153, 0));
+		z-index: 199;
+		display: flex;
+		align-items: center;
+	}
+
+	.pick-btn {
+		width: 600rpx;
+		height: 86rpx;
+		line-height: 84rpx;
+		background: #c19a6b;
+		color: #ffffff;
+		font-size: 29rpx;
+		border-radius: 43rpx;
+		box-shadow: 0 6rpx 16rpx rgba(167, 132, 87, 0.35);
+		border: none;
+	}
+
+	.pick-btn[disabled] {
+		background: #d9c5ab;
+		color: #f5ebd9;
+		box-shadow: none;
+	}
+
+	button::after {
+		border: none;
+	}
+</style>

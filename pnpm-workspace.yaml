@@ -1,0 +1,13 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - '!**/dist/**'
+  - '!**/node_modules/**'
+
+allowBuilds:
+  core-js: false
+  core-js-pure: false
+  esbuild: false
+linkWorkspacePackages: true
+preferWorkspacePackages: true
+sharedWorkspaceLockfile: true

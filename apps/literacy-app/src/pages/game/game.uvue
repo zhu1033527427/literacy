@@ -1,0 +1,203 @@
+<template>
+	<view class="page">
+		<!-- 绘本信息 -->
+		<view class="header">
+			<view class="cover" :style="{ backgroundImage: task.bg }">
+				<text class="cover-emoji">{{ task.emoji }}</text>
+			</view>
+			<text class="task-title">{{ task.title }}</text>
+			<text class="task-sub">先学生字，再来玩游戏巩固一下吧～</text>
+		</view>
+
+		<!-- 生字列表入口 -->
+		<view class="entry-card" @click="goTask">
+			<view class="entry-icon">
+				<text class="entry-emoji"></text>
+			</view>
+			<view class="entry-texts">
+				<text class="entry-title">生字列表</text>
+				<text class="entry-desc">先看看这本绘本要学的 {{ task.chars.length }} 个生字</text>
+			</view>
+			<text class="entry-arrow">›</text>
+		</view>
+
+		<!-- 游戏区 -->
+		<view class="section-header">
+			<text class="section-title"> 识字游戏</text>
+		</view>
+		<view class="game-grid">
+			<view class="game-card" v-for="g in games" :key="g.name" @click="comingSoon">
+				<text class="game-emoji">{{ g.emoji }}</text>
+				<text class="game-name">{{ g.name }}</text>
+				<text class="game-tag">敬请期待</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="ts">
+	import { ref } from 'vue'
+	import { tasks } from '../../data/tasks'
+	import type { Task } from '../../data/tasks'
+
+	const task = ref<Task>(tasks[0])
+
+	const games = [
+		{ name: '生字翻翻乐', emoji: '' },
+		{ name: '找字大作战', emoji: '' },
+		{ name: '读字小达人', emoji: '' },
+		{ name: '拼字小火车', emoji: '' }
+	]
+
+	onLoad((query : any) => {
+		const id = query && query.id ? parseInt(query.id) : 0
+		const found = tasks.find((b) => b.id === id)
+		if (found) {
+			task.value = found
+		}
+	})
+
+	function goTask() {
+		uni.navigateTo({ url: '/pages/task/task?id=' + task.value.id })
+	}
+
+	function comingSoon() {
+		uni.showToast({ title: '游戏即将上线，敬请期待～', icon: 'none' })
+	}
+</script>
+
+<style>
+	.page {
+		min-height: 100vh;
+		background-color: #d4ab79;
+		padding-bottom: 60rpx;
+	}
+
+	/* ===== 头部 ===== */
+	.header {
+		align-items: center;
+		padding: 50rpx 40rpx 10rpx;
+	}
+
+	.cover {
+		width: 180rpx;
+		height: 180rpx;
+		border-radius: 40rpx;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.08);
+	}
+
+	.cover-emoji {
+		font-size: 100rpx;
+	}
+
+	.task-title {
+		font-size: 44rpx;
+		font-weight: bold;
+		color: #5B4B8A;
+		margin-top: 24rpx;
+	}
+
+	.task-sub {
+		font-size: 24rpx;
+		color: #B08850;
+		margin-top: 10rpx;
+	}
+
+	/* ===== 生字列表入口 ===== */
+	.entry-card {
+		flex-direction: row;
+		align-items: center;
+		margin: 36rpx 30rpx 0;
+		border-radius: 28rpx;
+		padding: 30rpx 26rpx;
+		background-image: linear-gradient(135deg, #E8F0FF 0%, #F3E8FF 100%);
+		box-shadow: 0 8rpx 24rpx rgba(155, 135, 245, 0.18);
+	}
+
+	.entry-icon {
+		width: 88rpx;
+		height: 88rpx;
+		border-radius: 50%;
+		background-color: #FFFFFF;
+		align-items: center;
+		justify-content: center;
+		margin-right: 20rpx;
+	}
+
+	.entry-emoji {
+		font-size: 48rpx;
+	}
+
+	.entry-texts {
+		flex: 1;
+	}
+
+	.entry-title {
+		font-size: 34rpx;
+		font-weight: bold;
+		color: #5B4B8A;
+	}
+
+	.entry-desc {
+		font-size: 23rpx;
+		color: #9B8FBF;
+		margin-top: 8rpx;
+	}
+
+	.entry-arrow {
+		font-size: 48rpx;
+		color: #9B87F5;
+		margin-left: 12rpx;
+	}
+
+	/* ===== 区块标题 ===== */
+	.section-header {
+		padding: 40rpx 40rpx 8rpx;
+	}
+
+	.section-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #5B4B8A;
+	}
+
+	/* ===== 游戏网格 ===== */
+	.game-grid {
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		padding: 0 30rpx;
+	}
+
+	.game-card {
+		width: 48%;
+		background-color: #FFFFFF;
+		border-radius: 28rpx;
+		align-items: center;
+		padding: 36rpx 0 30rpx;
+		margin-top: 24rpx;
+		box-shadow: 0 8rpx 20rpx rgba(155, 135, 245, 0.1);
+	}
+
+	.game-emoji {
+		font-size: 80rpx;
+	}
+
+	.game-name {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #444444;
+		margin-top: 18rpx;
+	}
+
+	.game-tag {
+		font-size: 20rpx;
+		color: #B08850;
+		background-color: #FFEDD5;
+		padding: 6rpx 16rpx;
+		border-radius: 999rpx;
+		margin-top: 12rpx;
+	}
+</style>

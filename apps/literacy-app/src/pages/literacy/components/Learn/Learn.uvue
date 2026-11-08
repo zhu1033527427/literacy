@@ -1,0 +1,278 @@
+<template>
+  <view class="learn-body">
+    <!-- <text class="pinyin">{{ py }}</text> -->
+
+    <MiGrid :char="char" :class="bigCharClass" :strokeData="strokeData" />
+
+    <view class="section">
+      <view class="word-row">
+        <!-- <view class="word-chip" v-for="(w, i) in words" :key="i">
+          <text class="word-text">
+            {{ w }}
+          </text>
+        </view> -->
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { ref, onMounted, computed, watchEffect } from "vue";
+import { MiGrid } from "@/components/MiGrid.vue";
+const plugin = requirePlugin("WechatSI");
+const props = defineProps<{
+  char: string;
+}>();
+
+const playing = ref(false);
+const activeSlot = ref(-1);
+const strokeData = ref({
+  strokes: [],
+  redStrokes: [],
+  medians: []
+});
+watchEffect(async () => {
+  console.log(props.char);
+  if (props.char) {
+    console.log("=========");
+    strokeData.value = await loadStrokeData(props.char);
+    console.log(strokeData.value);
+    console.log("-----");
+  }
+});
+
+/** 读 */
+const speak = (content) => {
+  plugin.textToSpeech({
+    lang: "zh_CN",
+    tts: true,
+    content,
+    success: function (res) {
+      const audio = wx.createInnerAudioContext();
+      audio.src = res.filename;
+      audio.autoplay = true;
+    },
+    fail: function (res) {
+      console.log("fail tts", res);
+    }
+  });
+};
+/** 加载文字笔画 */
+async function loadStrokeData(char) {
+  // const code = char.charCodeAt(0).toString(16);
+  try {
+    const res = await uni.request({
+      url: `https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0/${char}.json`,
+      method: "GET"
+    });
+    return res.data;
+  } catch (e) {
+    console.warn(`加载笔画数据失败: ${char}`, e);
+    return null;
+  }
+}
+
+const bigCharClass = computed((): string => {
+  if (playing.value && activeSlot.value === 0) {
+    return "big-char big-char-on";
+  }
+  return "big-char";
+});
+</script>
+
+<style>
+.learn-body {
+  align-items: center;
+  padding: 6rpx 34rpx 0;
+}
+
+.pinyin {
+  font-size: 40rpx;
+  color: #7b9e84;
+  font-weight: bold;
+}
+
+.pinyin-tip {
+  font-size: 22rpx;
+  color: #9db9a4;
+  margin-top: 6rpx;
+}
+
+.big-char {
+  font-size: 380rpx;
+  line-height: 380rpx;
+  color: #35543f;
+  font-weight: bold;
+}
+
+.big-char-on {
+  color: #e06a4d;
+}
+
+.audio-pill {
+  flex-direction: row;
+  align-items: center;
+  margin-top: 24rpx;
+  padding: 16rpx 30rpx;
+  border-radius: 999rpx;
+  background-color: #ffffff;
+  border-width: 3rpx;
+  border-style: solid;
+  border-color: #bfe3c6;
+  box-shadow: 0 6rpx 16rpx rgba(86, 130, 96, 0.1);
+}
+
+.audio-on {
+  background-image: linear-gradient(135deg, #d9f5e1 0%, #beebd0 100%);
+  border-color: #7bcfa3;
+}
+
+.audio-icon {
+  font-size: 32rpx;
+  margin-right: 12rpx;
+}
+
+.audio-text {
+  font-size: 26rpx;
+  color: #3f6b52;
+  font-weight: bold;
+}
+
+.section {
+  width: 100%;
+  margin-top: 32rpx;
+}
+
+.section-head {
+  flex-direction: row;
+  align-items: center;
+}
+
+.section-icon {
+  font-size: 30rpx;
+  margin-right: 10rpx;
+}
+
+.section-title {
+  font-size: 28rpx;
+  color: #4b6b52;
+  font-weight: bold;
+}
+
+.word-row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  margin-top: 14rpx;
+}
+
+.word-chip {
+  flex-direction: row;
+  align-items: center;
+  background-color: #ffffff;
+  border-radius: 999rpx;
+  padding: 14rpx 24rpx;
+  margin-right: 16rpx;
+  margin-bottom: 14rpx;
+  border-width: 2rpx;
+  border-style: solid;
+  border-color: #d3e8d4;
+}
+
+.word-chip-on {
+  background-color: #ffe3b8;
+  border-color: #ffb74d;
+}
+
+.word-text {
+  font-size: 30rpx;
+  color: #35543f;
+  font-weight: bold;
+}
+
+.word-sound {
+  font-size: 22rpx;
+  margin-left: 8rpx;
+}
+
+.sentence-card {
+  flex-direction: row;
+  align-items: center;
+  background-color: #ffffff;
+  border-radius: 24rpx;
+  padding: 24rpx 26rpx;
+  margin-top: 14rpx;
+  border-width: 2rpx;
+  border-style: solid;
+  border-color: #d3e8d4;
+  box-shadow: 0 6rpx 16rpx rgba(86, 130, 96, 0.08);
+}
+
+.sentence-card-on {
+  background-color: #fff3d9;
+  border-color: #ffc15e;
+}
+
+.sentence-text {
+  flex: 1;
+  font-size: 28rpx;
+  color: #4a5f4e;
+  line-height: 46rpx;
+}
+
+.sentence-sound {
+  font-size: 30rpx;
+  margin-left: 12rpx;
+}
+
+.bottom-space {
+  height: 190rpx;
+}
+</style>
+
+
+
+
+
+// import svgPathParser from "svg-path-parser";
+import { getCharInfo } from "@/api/char";
+
+watchEffect(async () => {
+  if (props.char) {
+    // let x = await getCharInfo(props.char)
+    // console.log('====', x);
+  }
+});
+
+// watchEffect(async () => {
+// 	const c = props.char;
+// 	if (!c) return;
+
+// 	// 2. 加载笔画动画数据（如果需要）
+// 	// const strokeData = await loadStrokeData(props.char);
+// });
+
+// const charData = ref<any>(null)
+// const loading = ref(true)
+
+// // 加载数据
+// onMounted(async () => {
+// 	loading.value = true
+// 	charData.value = getCharExplain(props.char)
+// 	loading.value = false
+// })
+
+// // 朗读
+// async function handleSpeak(text : string) {
+// 	try {
+// 		await speak(text)
+// 	} catch (e) {
+// 		console.error('朗读失败:', e)
+// 	}
+// }
+
+// // 监听汉字变化
+// watch(() => props.char, () => {
+// 	loading.value = true
+// 	charData.value = getCharExplain(props.char)
+// 	loading.value = false
+// })

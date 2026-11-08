@@ -1,0 +1,130 @@
+<template>
+  <view class="page">
+    <view class="topbar">
+      <view class="back-btn" hover-class="back-hover" @click="goBack">
+        <text class="back-arrow">‹</text>
+      </view>
+      <view class="topbar-info">
+        <text class="task-name">{{ info.title }}</text>
+        <text class="char-count">第 {{ info.progress + 1 }} / {{ info.l }} 个字</text>
+      </view>
+      <StepFlow :stage="stage" @change="onStageChange" readonly />
+    </view>
+    <Learn v-if="stage === 'learn'" :char="info.char" />
+  </view>
+</template>
+
+<script setup lang="uts">
+import { ref, computed, watch } from "vue";
+import { onShow } from "@dcloudio/uni-app";
+import { ocrState } from "@/stores/ocr";
+import StepFlow from "./components/StepFlow/StepFlow.uvue";
+import Learn from "./components/Learn/Learn.uvue";
+
+import Material from "@literacy/shared-types";
+
+const stage = ref<string>("learn");
+const material = ref();
+
+const info = computed(() => {
+  const m = material.value;
+
+  const info: Material = {
+    id: m?.id || "",
+    title: m?.title || "",
+    progress: m?.progress || 0,
+    chars: m?.chars || ""
+  };
+  const currentChar = info.chars[info.progress] || "";
+
+  return {
+    ...info,
+    char: currentChar,
+    l: info.chars.length || 0
+  };
+});
+
+onShow(() => {
+  const pages = getCurrentPages();
+  const currentPage = pages[pages.length - 1];
+  const targetId =
+    currentPage?.options?.id || "http://store/IZ77AQd5aX3Ke4b6c99fccb19b28e8e8ac41b13d3ac7.jpg";
+  if (targetId) {
+    const data: Array<Material> = ocrState.list;
+    const currentData = data.find((item) => targetId === item.id);
+    material.value = currentData;
+  }
+});
+
+function onStageChange(key: string) {
+  stage.value = key;
+  console.log(key);
+  // 这里可以接你的业务逻辑：切换学/写/认面板
+  // if (key === 'write') startWrite()
+}
+
+function goBack() {
+  uni.navigateBack({
+    fail: () => uni.redirectTo({ url: "/pages/index/index" })
+  });
+}
+</script>
+
+<style scoped>
+.page {
+  height: 100vh;
+  background-color: #ddf0de;
+}
+
+.topbar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 110rpx;
+  padding: 0 28rpx;
+}
+
+.back-btn {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background-color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 12rpx rgba(86, 130, 96, 0.12);
+}
+
+.back-hover {
+  opacity: 0.7;
+}
+
+.back-arrow {
+  font-size: 44rpx;
+  color: #4b6b52;
+  margin-top: -4rpx;
+}
+
+.topbar-info {
+  flex: 1;
+  padding-left: 20rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.task-name {
+  font-size: 28rpx;
+  color: #4b6b52;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 50vw;
+}
+
+.char-count {
+  font-size: 22rpx;
+  color: #8aa893;
+  margin-top: 4rpx;
+}
+</style>
