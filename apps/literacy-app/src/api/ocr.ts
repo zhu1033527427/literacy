@@ -1,7 +1,8 @@
 // api/ocr.js
 import { request } from './request.js'
+import { OCRRequest, BatchOCRRequest, OCRResult, BatchOCRResponse } from '@literacy/shared-types'
 
-export function ocrSingle(imageBase64) {
+export function ocrSingle(imageBase64: OCRRequest['image_base64']): Promise<OCRResult> {
 	return request({
 		url: '/ocr/single',
 		method: 'POST',
@@ -9,7 +10,7 @@ export function ocrSingle(imageBase64) {
 	})
 }
 
-export function ocrBatch(images) {
+export function ocrBatch(images: BatchOCRRequest['images']): Promise<BatchOCRResponse> {
 	return request({
 		url: '/ocr/batch',
 		method: 'POST',

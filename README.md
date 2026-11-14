@@ -39,14 +39,14 @@ literacy/
 pnpm install
 
 # 2. 生成本地配置（首次或换环境时）
-cp packages/shared-config/config.example.js packages/shared-config/config.js
-# 编辑 packages/shared-config/config.js，填入 BASE_URL 与 API_KEY
+cp packages/shared-config/config.example.js packages/shared-config/config.ts
+# 编辑 packages/shared-config/config.ts，填入 BASE_URL 与 API_KEY
 
 # 3. 安装 OCR 服务依赖（或在 conda 环境中安装）
 pnpm ocr:install
 ```
 
-> `packages/shared-config/config.js` 含密钥，已被 `.gitignore` 忽略，不要提交。
+> `packages/shared-config/config.ts` 含密钥，已被 `.gitignore` 忽略，不要提交。
 
 ## 开发
 
@@ -62,7 +62,7 @@ pnpm ocr:test   # 用 test.jpg 跑一次本地识别
 
 1. 在 HBuilderX 中导入 `apps/uni-app` 目录（目录已从 `uni-app/` 迁移，需重新导入）。
 2. 运行到微信小程序或 App，识别请求地址取自
-   [literacy.uvue](apps/uni-app/pages/literacy/literacy.uvue) 中引用的 `packages/shared-config/config.js`。
+   [literacy.uvue](apps/uni-app/pages/literacy/literacy.uvue) 中引用的 `packages/shared-config/config.ts`。
 
 公网调试（可选）：
 

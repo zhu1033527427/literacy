@@ -24,11 +24,11 @@
 	</view>
 </template>
 <script setup lang="ts">
-	import Dec from '@/components/dec/dec.vue';
-	import List from './components/list/list.vue';
+	import Dec from '@/components/dec/dec.uvue';
+	import List from './components/list/list.uvue';
 
 	import { clearOcrResult } from '@/stores/ocr';
-	import customNav from '@/components/custom-nav/custom-nav.vue'
+	import customNav from '@/components/custom-nav/custom-nav.uvue'
 
 	function clearOcrData() {
 		uni.showModal({

@@ -1,0 +1,14 @@
+<template>
+  <view></view>
+</template>
+<script setup lang="uts">
+import cnchar from "cnchar";
+import order from "cnchar-order";
+
+cnchar.use(order); // use 在浏览器环境中非必须
+
+var order4 = cnchar.stroke("你", "order", "name");
+
+console.log("笔划名称模式：", order4);
+</script>
+<style></style>

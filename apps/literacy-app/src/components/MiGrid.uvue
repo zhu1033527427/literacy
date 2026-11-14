@@ -1,39 +1,26 @@
 <template>
-  <view class="grid-box">
+  <view class="grid-box" :style="{ width: props.width, height: props.height }">
     <view class="grid-line line-v"></view>
     <view class="grid-line line-h"></view>
     <view class="grid-line line-d1"></view>
     <view class="grid-line line-d2"></view>
-    <text :class="class">{{ props.char }}</text>
-    <view>
-      <svg width="100" height="100" viewBox="0 0 24 24">
-        <path d="M9 6L15 12L9 18" stroke="#000" fill="none" />
-      </svg>
-    </view>
-
-    <!-- <svg width="1000" height="1000" view-box="0 0 1000 1000">
-      <path
-        v-for="(stroke, i) in props.strokeData.strokes"
-        :d="stroke"
-        :key="i"
-      ></path>
-    </svg> -->
+    <slot />
   </view>
 </template>
 
-<script setup lang="ts">
-import { StrokeData } from '@literacy/shared-types';
-const props = defineProps<{
-  char: string;
-  class: string;
-  strokeData: StrokeData;
-}>();
+<script setup lang="uts">
+const props = defineProps({
+  width: {
+    type: String
+  },
+  height: {
+    type: String
+  }
+});
 </script>
 
 <style>
 .grid-box {
-  width: 560rpx;
-  height: 560rpx;
   background-color: #fbfdf7;
   border-width: 4rpx;
   border-style: solid;

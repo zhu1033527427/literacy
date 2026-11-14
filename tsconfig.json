@@ -1,0 +1,46 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": false,
+    "jsx": "preserve",
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
+    "types": [
+      "@dcloudio/types",
+      "node"
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "apps/literacy-app/src/*"
+      ],
+      "@shared-types/*": [
+        "packages/shared-types/src/*"
+      ],
+      "@shared-config/*": [
+        "packages/shared-config/*"
+      ]
+    }
+  },
+  "include": [
+    "apps/literacy-app/**/*.ts",
+    "apps/literacy-app/**/*.vue",
+    "apps/literacy-app/**/*.uvue",
+    "apps/literacy-app/**/*.uts",
+    "packages/**/*.ts",
+    "packages/**/*.vue",
+    "packages/**/*.uvue"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/dist",
+    "services/**"
+  ]
+}

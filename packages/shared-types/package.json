@@ -1,6 +1,9 @@
 {
   "name": "@literacy/shared-types",
   "type": "module",
+  "scripts": {
+    "gen:api": "swagger-typescript-api generate --path http://localhost:8000/openapi.json -o ./src -n literacy-api.ts --axios"
+  },
   "exports": {
     ".": {
       "types": "./src/index.ts",
@@ -8,5 +11,8 @@
     }
   },
   "main": "./src/index.ts",
-  "types": "./src/index.ts"
+  "types": "./src/index.ts",
+  "devDependencies": {
+    "swagger-typescript-api": "^13.13.0"
+  }
 }

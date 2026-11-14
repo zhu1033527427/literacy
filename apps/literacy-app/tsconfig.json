@@ -8,16 +8,24 @@
     "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": [
+        "src/*"
+      ]
     },
-    "types": ["vue", "@dcloudio/types"]
+    "types": [
+      "vue",
+      "@dcloudio/types",
+      "@types/wechat-miniprogram",
+      "@uni-helper/uni-app-types"
+    ]
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.d.ts",
-    "src/**/*.tsx",
-    "src/**/*.vue",
-    "src/**/*.uvue",
-    "packages/**/*.ts" // 👈 添加这一行，让 TS 索引外部包
+    "*.d.ts",
+    "*.tsx",
+    "*.vue",
+    "*.uvue",
+    "packages/**/*.ts",
+    "shims-uni.d.ts"
   ]
 }

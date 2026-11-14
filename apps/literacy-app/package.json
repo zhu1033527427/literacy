@@ -57,6 +57,8 @@
     "@literacy/shared-config": "workspace:*",
     "@literacy/shared-types": "workspace:*",
     "axios": "^1.21.0",
+    "cnchar": "^3.2.6",
+    "cnchar-order": "^3.2.6",
     "uview-ui": "^2.0.38",
     "vue": "^3.4.21",
     "vue-i18n": "^9.1.9"
@@ -68,6 +70,8 @@
     "@dcloudio/uni-stacktracey": "3.0.0-5030420261029002",
     "@dcloudio/uni-uts-v1": "3.0.0-5030420261029002",
     "@dcloudio/vite-plugin-uni": "3.0.0-5030420261029002",
+    "@types/wechat-miniprogram": "^3.4.10",
+    "@uni-helper/uni-app-types": "^1.5.0",
     "@vue/runtime-core": "^3.4.21",
     "rollup": "4.14.3",
     "vite": "5.2.8"
