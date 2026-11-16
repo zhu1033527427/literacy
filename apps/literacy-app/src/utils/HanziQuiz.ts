@@ -11,15 +11,13 @@
 /* ============================================================================
  * 一、对外类型
  * ============================================================================ */
-
 export type Point = { x: number; y: number };
 
-/** 默认认为 stroke.points 已经是 Point[]。
- *  若 shared-types 里是 number[][]，只改 getStrokePoints() 一处即可。 */
+/** 外部传入的笔画结构（宽松） */
 export type Stroke = {
   path: string;
   points: Point[];
-  strokeNum: number;
+  strokeNum?: number; // ★ 可选：外部传入时可不填，内部规范化时填入
 };
 
 export type StrokeEventData = {
@@ -43,13 +41,11 @@ export type OnComplete = (data: CompleteEventData) => void;
 export type QuizOptions = {
   character: string;
 
-  // 匹配参数
+  // 匹配参数（不变）
   leniency: number;
   averageDistanceThreshold: number;
   acceptBackwardsStrokes: boolean;
-  /** 错 n 次后强制算对；0 表示不启用 */
   markStrokeCorrectAfterMisses: number;
-  /** 错 n 次后触发提示（由 onMistake 里自己展示）；0 表示不启用 */
   showHintAfterMisses: number;
 
   // 渲染参数
@@ -58,7 +54,13 @@ export type QuizOptions = {
   drawingWidth: number;
   padding: number;
 
-  // 回调
+  // ★ 新增：参照字 + 当前笔画提示
+  showOutline: boolean; // 是否显示参照字
+  outlineColor: string; // 参照字颜色（浅色）
+  hintCurrentStroke: boolean; // 是否始终高亮当前该写的笔画
+  highlightColor: string; // 当前笔画提示色
+
+  // 回调（不变）
   onCorrectStroke: OnCorrectStroke | null;
   onMistake: OnMistake | null;
   onComplete: OnComplete | null;
@@ -72,10 +74,18 @@ export function createDefaultQuizOptions(character: string): QuizOptions {
     acceptBackwardsStrokes: false,
     markStrokeCorrectAfterMisses: 0,
     showHintAfterMisses: 3,
-    strokeColor: '#555555',
-    drawingColor: '#333333',
+
+    strokeColor: "#555555",
+    drawingColor: "#333333",
     drawingWidth: 4,
     padding: 10,
+
+    // ★ 默认：显示参照字，错 3 次后才提示当前笔
+    showOutline: true,
+    outlineColor: "#E0E0E0",
+    hintCurrentStroke: false,
+    highlightColor: "#FFB6C1",
+
     onCorrectStroke: null,
     onMistake: null,
     onComplete: null,
@@ -371,7 +381,11 @@ function getMatchData(
   options: MatchOptions,
 ): MatchResult {
   const avgDist = getAverageDistance(points, stroke);
-  const distMod = options.isOutlineVisible || stroke.strokeNum > 0 ? 0.5 : 1;
+
+  // ★ 提取出来，可选属性兜底为 0
+  const strokeNum = stroke.strokeNum ?? 0;
+  const distMod = options.isOutlineVisible || strokeNum > 0 ? 0.5 : 1;
+
   const within =
     avgDist <= options.averageDistanceThreshold * distMod * options.leniency;
   if (!within) return { isMatch: false, avgDist, isBackwards: false };
@@ -471,23 +485,23 @@ function isPathLetter(ch: string): boolean {
   return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
 }
 function isPathSpace(ch: string): boolean {
-  return ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r';
+  return ch === " " || ch === "\t" || ch === "\n" || ch === "\r";
 }
 
 function buildPath(c: any, pathString: string): void {
-  let cmd = '';
+  let cmd = "";
   let nums: number[] = [];
 
   const flush = () => {
-    if (cmd === 'M') {
+    if (cmd === "M") {
       for (let k = 0; k + 1 < nums.length; k += 2) {
         if (k === 0) c.moveTo(nums[0], nums[1]);
         else c.lineTo(nums[k], nums[k + 1]);
       }
-    } else if (cmd === 'L') {
+    } else if (cmd === "L") {
       for (let k = 0; k + 1 < nums.length; k += 2)
         c.lineTo(nums[k], nums[k + 1]);
-    } else if (cmd === 'C') {
+    } else if (cmd === "C") {
       for (let k = 0; k + 5 < nums.length; k += 6) {
         c.bezierCurveTo(
           nums[k],
@@ -498,11 +512,11 @@ function buildPath(c: any, pathString: string): void {
           nums[k + 5],
         );
       }
-    } else if (cmd === 'Q') {
+    } else if (cmd === "Q") {
       for (let k = 0; k + 3 < nums.length; k += 4) {
         c.quadraticCurveTo(nums[k], nums[k + 1], nums[k + 2], nums[k + 3]);
       }
-    } else if (cmd === 'Z' || cmd === 'z') {
+    } else if (cmd === "Z" || cmd === "z") {
       c.closePath();
     }
     nums = [];
@@ -515,7 +529,7 @@ function buildPath(c: any, pathString: string): void {
       flush();
       cmd = ch;
       i++;
-    } else if (isPathSpace(ch) || ch === ',') {
+    } else if (isPathSpace(ch) || ch === ",") {
       i++;
     } else {
       let j = i;
@@ -523,7 +537,7 @@ function buildPath(c: any, pathString: string): void {
         j < pathString.length &&
         !isPathLetter(pathString[j]) &&
         !isPathSpace(pathString[j]) &&
-        pathString[j] !== ','
+        pathString[j] !== ","
       )
         j++;
       nums.push(parseFloat(pathString.substring(i, j)));
@@ -655,8 +669,6 @@ export class HanziQuiz {
 
     ctx.clearRect(0, 0, this._width, this._height);
     ctx.save();
-
-    // 进入汉字坐标系：平移到原点 → y 翻转 → 缩放
     ctx.translate(
       this._positioner.xOffset,
       this._height - this._positioner.yOffset,
@@ -664,17 +676,58 @@ export class HanziQuiz {
     ctx.transform(1, 0, 0, -1, 0, 0);
     ctx.scale(this._positioner.scale, this._positioner.scale);
 
-    // 已完成笔画：实心显示
-    for (let i = 0; i < this._currentStrokeIndex; i++)
-      this._drawStroke(this._strokes[i]);
+    // 第 1 层：参照字（所有笔画浅色）
+    if (this._options.showOutline) {
+      for (let i = 0; i < this._strokes.length; i++) {
+        this._drawStroke(this._strokes[i], this._options.outlineColor);
+      }
+    }
 
-    // 当前手写轨迹
-    if (this._currentPoints.length >= 2)
+    // 第 2 层：已完成笔画（深色，盖住参照）
+    for (let i = 0; i < this._currentStrokeIndex; i++) {
+      this._drawStroke(this._strokes[i], this._options.strokeColor);
+    }
+
+    // 第 3 层：当前笔画提示（错 N 次后 / 或始终）
+    if (this._shouldShowHint()) {
+      this._drawStroke(
+        this._strokes[this._currentStrokeIndex],
+        this._options.highlightColor,
+      );
+    }
+
+    // 第 4 层：用户手写轨迹
+    if (this._currentPoints.length >= 2) {
       this._drawUserStroke(this._currentPoints);
+    }
 
     ctx.restore();
   }
 
+  private _shouldShowHint(): boolean {
+    if (this._currentStrokeIndex >= this._strokes.length) return false;
+
+    // 始终高亮当前笔
+    if (this._options.hintCurrentStroke) return true;
+
+    // 错够 showHintAfterMisses 次才提示
+    if (
+      this._options.showHintAfterMisses > 0 &&
+      this._mistakesOnStroke >= this._options.showHintAfterMisses
+    ) {
+      return true;
+    }
+    return false;
+  }
+  private _drawOutlineStroke(stroke: Stroke, color: string): void {
+    if (!stroke.path) return;
+    const ctx = this._ctx;
+    ctx.beginPath();
+    buildPath(ctx, stroke.path);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2; // 汉字坐标下的线宽
+    ctx.stroke();
+  }
   reset(): void {
     this._currentStrokeIndex = 0;
     this._currentPoints = [];
@@ -739,11 +792,12 @@ export class HanziQuiz {
 
   /* ---------------- 内部：绘制 ---------------- */
 
-  private _drawStroke(stroke: Stroke): void {
+  private _drawStroke(stroke: Stroke, color: string): void {
+    if (!stroke.path) return;
     const ctx = this._ctx;
     ctx.beginPath();
     buildPath(ctx, stroke.path);
-    ctx.fillStyle = this._options.strokeColor;
+    ctx.fillStyle = color;
     ctx.fill();
   }
 
@@ -755,8 +809,8 @@ export class HanziQuiz {
       ctx.lineTo(points[i].x, points[i].y);
     ctx.strokeStyle = this._options.drawingColor;
     ctx.lineWidth = this._options.drawingWidth;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     ctx.stroke();
   }
 }

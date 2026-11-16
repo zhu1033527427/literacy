@@ -6,8 +6,8 @@
   "scripts": {
     "cpolar": "cpolar http 8000",
     "gen:api": "pnpm --filter @literacy/shared-types gen:api",
-    "server": "conda run -n ocr-lab --live-stream bash -c 'cd services/literacy-api && python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload'",
-    "dev:wx": "pnpm --filter literacy-app run dev:wx",
+    "backend": "conda run -n ocr-lab --live-stream bash -c 'cd services/literacy-api && python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload'",
+    "frontend": "pnpm --filter literacy-app run dev:wx",
     "dev:h5": "pnpm --filter literacy-app run dev:h5"
   }
 }

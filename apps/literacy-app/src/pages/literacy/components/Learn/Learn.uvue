@@ -35,7 +35,7 @@ import type { StrokeData, CharDetail } from "@literacy/shared-types";
 
 const props = defineProps<{
   charInfo: CharDetail;
-  strokeList: Array<Stroke>;
+  strokes: Array<Stroke>;
 }>();
 
 const currentIndex = ref(0);
@@ -62,7 +62,7 @@ watchEffect(async () => {
   }
 });
 
-const svgDataUrl = computed(() => strokesToSvgDataUrl(props?.strokeList));
+const svgDataUrl = computed(() => strokesToSvgDataUrl(props?.strokes));
 </script>
 
 <style>

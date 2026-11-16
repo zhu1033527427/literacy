@@ -2,90 +2,93 @@
   <view class="body">
     <MiGrid :size="props.size">
       <canvas
-      id="myCanvas"
-      type="2d"
-      :width="props.size"
-      :height="props.size"
-      :style="{ width: `${props.size}rpx`, height: `${props.size}rpx` }"
-      @touchstart="onTouchStart"
-      @touchmove="onTouchMove"
-      @touchend="onTouchEnd"
-      >
-      </canvas>
+        id="myCanvas"
+        type="2d"
+        :width="props.size"
+        :height="props.size"
+        :style="{ width: `${props.size}rpx`, height: `${props.size}rpx` }"
+        @touchstart="onTouchStart"
+        @touchmove="onTouchMove"
+        @touchend="onTouchEnd"
+      ></canvas>
     </MiGrid>
   </view>
 </template>
 <script setup lang="uts">
-  import { getCurrentInstance } from "vue";
-  import { onReady } from "@dcloudio/uni-app";
-  import { HanziQuiz, createDefaultQuizOptions } from "@/utils/HanziQuiz";
-  import type { CharDetail } from "@literacy/shared-types";
+import MiGrid from "@/components/MiGrid";
+import { getCurrentInstance } from "vue";
+import { onReady } from "@dcloudio/uni-app";
+import { HanziQuiz, createDefaultQuizOptions } from "@/utils/HanziQuiz";
+import type { CharDetail } from "@literacy/shared-types";
+import { Stroke } from "@/utils/write";
 
-  const props = defineProps<{
-    charInfo: CharDetail;
-    strokeList: Array<Stroke>;
-    points: Array<number>;
-    size: string;
-  }>();
+const props = defineProps<{
+  charInfo: CharDetail;
+  strokes: Array<Stroke>;
+  size: string;
+}>();
 
-  let quiz: HanziQuiz | null = null;
-  let canvasLeft = 0;
-  let canvasTop = 0;
+let quiz: HanziQuiz | null = null;
+let canvasLeft = 0;
+let canvasTop = 0;
 
-  onReady(() => initCanvas());
+onReady(() => initCanvas());
 
-  function initCanvas() {
-    const query = uni.createSelectorQuery().in(getCurrentInstance()!.proxy);
-    query
+function initCanvas() {
+  const query = uni.createSelectorQuery().in(getCurrentInstance()!.proxy);
+  query
     .select("#myCanvas")
     .fields({ node: true, size: true, rect: true })
     .exec((res) => {
-        if (!res || !res[0]) return;
-        const r = res[0] as any;
+      if (!res || !res[0]) return;
+      const r = res[0] as any;
 
-        const canvas = r.node;
-        const ctx = canvas.getContext("2d");
+      const canvas = r.node;
+      const ctx = canvas.getContext("2d");
 
-        const dpr = uni.getSystemInfoSync().pixelRatio || 1;
-        canvas.width = r.width * dpr;
-        canvas.height = r.height * dpr;
-        ctx.scale(dpr, dpr);
+      const dpr = uni.getSystemInfoSync().pixelRatio || 1;
+      canvas.width = r.width * dpr;
+      canvas.height = r.height * dpr;
+      ctx.scale(dpr, dpr);
 
-        canvasLeft = r.left;
-        canvasTop = r.top;
+      canvasLeft = r.left;
+      canvasTop = r.top;
 
-        const opts = createDefaultQuizOptions(props.charInfo.char);
-        opts.onCorrectStroke = (d) => console.log("对", d.strokeNum, d.isBackwards);
-        opts.onMistake = (d) => console.log("错", d.mistakesOnStroke, d.totalMistakes);
-        opts.onComplete = (d) => console.log("完成", d.totalMistakes);
-        quiz = new HanziQuiz(canvas, ctx, r.width, r.height, props.points, opts);
-        quiz.redraw();
-
-        console.log("strokeList: ", props.points);
+      const opts = createDefaultQuizOptions(props.charInfo.char);
+      opts.onCorrectStroke = (d) => console.log("对", d.strokeNum, d.isBackwards);
+      opts.onMistake = (d) => console.log("错", d.mistakesOnStroke, d.totalMistakes);
+      opts.onComplete = (d) => console.log("完成", d.totalMistakes);
+      quiz = new HanziQuiz(canvas, ctx, r.width, r.height, props.strokes, {
+        ...opts,
+        showOutline: true,
+        hintCurrentStroke: true,
+        showHintAfterMisses: 0
       });
-  }
+      quiz.redraw();
+    });
+}
 
-  function onTouchStart(e: any) {
-    if (!quiz) return;
-    const t = e.touches[0];
-    quiz.onTouchStart(t.clientX - canvasLeft, t.clientY - canvasTop);
-  }
-  function onTouchMove(e: any) {
-    if (!quiz) return;
-    const t = e.touches[0];
-    quiz.onTouchMove(t.clientX - canvasLeft, t.clientY - canvasTop);
-  }
-  function onTouchEnd(_e: any) {
-    if (!quiz) return;
-    quiz.onTouchEnd();
-  }
+function onTouchStart(e: any) {
+  if (!quiz) return;
+  const t = e.touches[0];
+  quiz.onTouchStart(t.clientX - canvasLeft, t.clientY - canvasTop);
+}
+function onTouchMove(e: any) {
+  if (!quiz) return;
+  const t = e.touches[0];
+  quiz.onTouchMove(t.clientX - canvasLeft, t.clientY - canvasTop);
+}
+function onTouchEnd(_e: any) {
+  if (!quiz) return;
+  quiz.onTouchEnd();
+}
 </script>
 <style>
-  .body {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  .class {
-  }
+.body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.class {
+}
 </style>
