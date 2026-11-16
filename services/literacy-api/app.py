@@ -1,3 +1,6 @@
+import base64
+from typing import List
+from pydantic import BaseModel
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -5,7 +8,7 @@ import sys
 import os
 
 from ocr.service import init_engine, ocr_bytes, ocr_bytes_safe, OCRResult, BatchOCRResponse
-from dict.service import load_dict
+from dict.service import load_dict, CharDetail
 
 # ============================================================
 # 鉴权
@@ -18,6 +21,8 @@ if not API_KEY:
 # ============================================================
 # 生命周期
 # ============================================================
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 启动 Literacy API...")
@@ -39,6 +44,8 @@ app.add_middleware(
 # ============================================================
 # 鉴权依赖
 # ============================================================
+
+
 def _require_key(x_api_key: str = Header(None, alias="X-API-Key")):
     if x_api_key != API_KEY:
         raise HTTPException(status_code=403, detail="invalid api key")
@@ -46,22 +53,25 @@ def _require_key(x_api_key: str = Header(None, alias="X-API-Key")):
 # ============================================================
 # 健康检查
 # ============================================================
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "services": ["ocr", "dict"]}
 
+
 # ============================================================
 # ===== OCR 接口 =====
 # ============================================================
-from pydantic import BaseModel
-from typing import List
-import base64
+
 
 class OCRRequest(BaseModel):
     image_base64: str
 
+
 class BatchOCRRequest(BaseModel):
     images: List[str]
+
 
 @app.post("/ocr/single")
 def ocr_single(
@@ -81,6 +91,7 @@ def ocr_single(
         return {"success": False, "error": str(e), "lines": [], "detail": [], "elapse": "0s"}
 
 # app.py 里的 OCR 接口
+
 
 @app.post("/ocr/single", response_model=OCRResult)
 def ocr_single(
@@ -120,7 +131,9 @@ def ocr_batch(
 # ============================================================
 # ===== 字典接口 =====
 # ============================================================
-@app.get("/dict/char/{char}")
+
+
+@app.get("/dict/char/{char}", response_model=CharDetail)
 def get_char(char: str):
     """查单个字：拼音 + 释义"""
     from dict.service import get_char_detail

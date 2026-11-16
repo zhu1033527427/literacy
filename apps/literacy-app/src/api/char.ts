@@ -1,5 +1,5 @@
 // api/char.js
-import { request } from './request'
+import { request } from './request';
 
 /**
  * 查询汉字的识字信息
@@ -7,12 +7,12 @@ import { request } from './request'
  * @returns {Promise<Object>} 结构化识字 JSON
  */
 export async function getCharInfo(char: string): Promise<any> {
-	if (!char || char.length > 2) {
-		throw new Error('请输入 1~2 个汉字')
-	}
-	return request({
-		url: '/dict/char/' + char,
-		method: 'GET',
-		timeout: 180000,
-	})
+  if (!char || char.length > 2) {
+    throw new Error('请输入 1~2 个汉字');
+  }
+  return request({
+    url: '/dict/char/' + char,
+    method: 'GET',
+    timeout: 180000,
+  });
 }

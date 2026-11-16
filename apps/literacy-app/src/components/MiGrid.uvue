@@ -1,22 +1,20 @@
 <template>
-  <view class="grid-box" :style="{ width: props.width, height: props.height }">
-    <view class="grid-line line-v"></view>
-    <view class="grid-line line-h"></view>
-    <view class="grid-line line-d1"></view>
-    <view class="grid-line line-d2"></view>
+  <view class="grid-box" :style="{ width: `${props.size}rpx`, height: `${props.size}rpx` }">
+    <view class="grid-line line-v" :style="{ height: `${props.size}rpx` }"></view>
+    <view class="grid-line line-h" :style="{ width: `${props.size}rpx` }"></view>
+    <view class="grid-line line-d1" :style="`width: ${l}rpx; margin-left: ${l / -2}rpx`"></view>
+    <view class="grid-line line-d2" :style="`width: ${l}rpx; margin-left: ${l / -2}rpx`"></view>
     <slot />
   </view>
 </template>
 
 <script setup lang="uts">
 const props = defineProps({
-  width: {
-    type: String
-  },
-  height: {
+  size: {
     type: String
   }
 });
+const l = computed(() => Math.sqrt(props.size * props.size * 2));
 </script>
 
 <style>
@@ -43,7 +41,6 @@ const props = defineProps({
   left: 50%;
   top: 6rpx;
   width: 2rpx;
-  height: 548rpx;
   margin-left: -1rpx;
 }
 
@@ -51,16 +48,13 @@ const props = defineProps({
   top: 50%;
   left: 6rpx;
   height: 2rpx;
-  width: 548rpx;
   margin-top: -1rpx;
 }
 
 .line-d1 {
   top: 50%;
   left: 50%;
-  width: 740rpx;
   height: 2rpx;
-  margin-left: -370rpx;
   margin-top: -1rpx;
   transform: rotate(45deg);
 }
@@ -68,9 +62,7 @@ const props = defineProps({
 .line-d2 {
   top: 50%;
   left: 50%;
-  width: 740rpx;
   height: 2rpx;
-  margin-left: -370rpx;
   margin-top: -1rpx;
   transform: rotate(-45deg);
 }

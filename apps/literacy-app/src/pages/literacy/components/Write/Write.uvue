@@ -1,14 +1,91 @@
 <template>
-  <view></view>
+  <view class="body">
+    <MiGrid :size="props.size">
+      <canvas
+      id="myCanvas"
+      type="2d"
+      :width="props.size"
+      :height="props.size"
+      :style="{ width: `${props.size}rpx`, height: `${props.size}rpx` }"
+      @touchstart="onTouchStart"
+      @touchmove="onTouchMove"
+      @touchend="onTouchEnd"
+      >
+      </canvas>
+    </MiGrid>
+  </view>
 </template>
 <script setup lang="uts">
-import cnchar from "cnchar";
-import order from "cnchar-order";
+  import { getCurrentInstance } from "vue";
+  import { onReady } from "@dcloudio/uni-app";
+  import { HanziQuiz, createDefaultQuizOptions } from "@/utils/HanziQuiz";
+  import type { CharDetail } from "@literacy/shared-types";
 
-cnchar.use(order); // use 在浏览器环境中非必须
+  const props = defineProps<{
+    charInfo: CharDetail;
+    strokeList: Array<Stroke>;
+    points: Array<number>;
+    size: string;
+  }>();
 
-var order4 = cnchar.stroke("你", "order", "name");
+  let quiz: HanziQuiz | null = null;
+  let canvasLeft = 0;
+  let canvasTop = 0;
 
-console.log("笔划名称模式：", order4);
+  onReady(() => initCanvas());
+
+  function initCanvas() {
+    const query = uni.createSelectorQuery().in(getCurrentInstance()!.proxy);
+    query
+    .select("#myCanvas")
+    .fields({ node: true, size: true, rect: true })
+    .exec((res) => {
+        if (!res || !res[0]) return;
+        const r = res[0] as any;
+
+        const canvas = r.node;
+        const ctx = canvas.getContext("2d");
+
+        const dpr = uni.getSystemInfoSync().pixelRatio || 1;
+        canvas.width = r.width * dpr;
+        canvas.height = r.height * dpr;
+        ctx.scale(dpr, dpr);
+
+        canvasLeft = r.left;
+        canvasTop = r.top;
+
+        const opts = createDefaultQuizOptions(props.charInfo.char);
+        opts.onCorrectStroke = (d) => console.log("对", d.strokeNum, d.isBackwards);
+        opts.onMistake = (d) => console.log("错", d.mistakesOnStroke, d.totalMistakes);
+        opts.onComplete = (d) => console.log("完成", d.totalMistakes);
+        quiz = new HanziQuiz(canvas, ctx, r.width, r.height, props.points, opts);
+        quiz.redraw();
+
+        console.log("strokeList: ", props.points);
+      });
+  }
+
+  function onTouchStart(e: any) {
+    if (!quiz) return;
+    const t = e.touches[0];
+    quiz.onTouchStart(t.clientX - canvasLeft, t.clientY - canvasTop);
+  }
+  function onTouchMove(e: any) {
+    if (!quiz) return;
+    const t = e.touches[0];
+    quiz.onTouchMove(t.clientX - canvasLeft, t.clientY - canvasTop);
+  }
+  function onTouchEnd(_e: any) {
+    if (!quiz) return;
+    quiz.onTouchEnd();
+  }
 </script>
-<style></style>
+<style>
+  .body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .class {
+  }
+</style>

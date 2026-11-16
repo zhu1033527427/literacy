@@ -58,7 +58,9 @@
     "@literacy/shared-types": "workspace:*",
     "axios": "^1.21.0",
     "cnchar": "^3.2.6",
+    "cnchar-explain": "^3.2.6",
     "cnchar-order": "^3.2.6",
+    "cnchar-words": "^3.2.6",
     "uview-ui": "^2.0.38",
     "vue": "^3.4.21",
     "vue-i18n": "^9.1.9"

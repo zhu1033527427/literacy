@@ -231,7 +231,13 @@ importers:
       cnchar:
         specifier: ^3.2.6
         version: 3.2.6
+      cnchar-explain:
+        specifier: ^3.2.6
+        version: 3.2.6
       cnchar-order:
+        specifier: ^3.2.6
+        version: 3.2.6
+      cnchar-words:
         specifier: ^3.2.6
         version: 3.2.6
       uview-ui:
@@ -2116,11 +2122,17 @@ packages:
     resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
     engines: {node: '>=6'}
 
+  cnchar-explain@3.2.6:
+    resolution: {integrity: sha512-nPUeeBIizArPdiWzvRXZJl0JQikD5C5V4TYJFT1gVWHQKvT4O4gOAn+tCLapmZu4yJ6evWIaPvsV6V9Dh3c9EQ==}
+
   cnchar-order@3.2.6:
     resolution: {integrity: sha512-xeW1MnQk9GLW9rOvgTtBLl9amyJ0MBKAuXGgbiAwC/n1MRLoxW4ZnjPL+isVsi0rV3QXlbiDQQKAnL6TsJNLhA==}
 
   cnchar-types@3.2.6:
     resolution: {integrity: sha512-LGU2ss7KcsI1Psme73+jffUX0ZDuChr6P9Rj2j8lynJHStklNpoC/+kheKSSUcXQ1u2KNvZt1Shs/5efcihHkg==}
+
+  cnchar-words@3.2.6:
+    resolution: {integrity: sha512-g0FPLbaUaWxvUH/L2dHsQiWqvghwtfRWP+yCGDLWijza2MT6ET8GP8+dNbqYVmnSU02yUTlR7X1sUY5pckzL0Q==}
 
   cnchar@3.2.6:
     resolution: {integrity: sha512-7Up5ALAkoOTAHlRMN0B7VgrrRsp6+trgFV0M7xSsZ0TwnnBfW68gXClcE9Oz8sTOEu+zqGOZjBhlHNzPIBckDA==}
@@ -6946,11 +6958,19 @@ snapshots:
 
   clsx@2.1.1: {}
 
+  cnchar-explain@3.2.6:
+    dependencies:
+      cnchar-types: 3.2.6
+
   cnchar-order@3.2.6:
     dependencies:
       cnchar-types: 3.2.6
 
   cnchar-types@3.2.6: {}
+
+  cnchar-words@3.2.6:
+    dependencies:
+      cnchar-types: 3.2.6
 
   cnchar@3.2.6:
     dependencies:

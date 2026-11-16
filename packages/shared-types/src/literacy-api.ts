@@ -26,6 +26,31 @@ export interface BatchOCRResponse {
   results: OCRResult[];
 }
 
+/** CharDetail */
+export interface CharDetail {
+  /** Char */
+  char: string;
+  /** Found */
+  found: boolean;
+  /** Entries */
+  entries: Entry[];
+  /** Order */
+  order: string;
+  /**
+   * Total Meanings
+   * @default 0
+   */
+  total_meanings?: number;
+}
+
+/** Entry */
+export interface Entry {
+  /** Pinyin */
+  pinyin: string;
+  /** Meanings */
+  meanings: string[];
+}
+
 /** HTTPValidationError */
 export interface HTTPValidationError {
   /** Detail */
@@ -320,7 +345,7 @@ export class Api<
      * @request GET:/dict/char/{char}
      */
     getCharDictCharCharGet: (char: string, params: RequestParams = {}) =>
-      this.request<any, HTTPValidationError>({
+      this.request<CharDetail, HTTPValidationError>({
         path: `/dict/char/${char}`,
         method: "GET",
         format: "json",

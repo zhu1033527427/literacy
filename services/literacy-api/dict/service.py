@@ -1,9 +1,27 @@
 import json
 import os
 from pathlib import Path
+from typing import List, Optional
+from pydantic import BaseModel
 
 _DATA: dict = {}
 _CHAR_LIST: list = []
+
+# ── 数据模型 ──
+
+
+class Entry(BaseModel):
+    pinyin: str
+    meanings: list[str]
+
+
+class CharDetail(BaseModel):
+    char: str
+    found: bool
+    entries: list[Entry]
+    order: str
+    total_meanings: int = 0
+
 
 def load_dict():
     global _DATA, _CHAR_LIST
@@ -15,19 +33,22 @@ def load_dict():
     _CHAR_LIST = sorted(_DATA.keys())
     print(f"✅ 字典加载完成: {len(_CHAR_LIST)} 个字")
 
-def get_char_detail(char: str):
-    """查单个字详情"""
-    if char not in _DATA:
-        return {"char": char, "found": False, "entries": []}
-    raw = _DATA[char]
-    entries = [{"pinyin": p, "meanings": m} for p, m in raw.items()]
-    total = sum(len(v) for v in raw.values())
-    return {
-        "char": char,
-        "found": True,
-        "entries": entries,
-        "total_meanings": total,
-    }
+
+def get_char_detail(char: str) -> CharDetail:
+    data = _DATA.get(char)
+    if data is None:
+        return CharDetail(char=char, found=False, entries=[], order=[])
+    defs = data.get("defs") or {}
+    order = data.get("order") or []
+    entries = [Entry(pinyin=p, meanings=m) for p, m in defs.items()]
+    return CharDetail(
+        char=char,
+        found=True,
+        entries=entries,
+        order=order,
+        total_meanings=sum(len(m) for m in defs.values()),
+    )
+
 
 def get_chars_batch(chars_str: str):
     """批量查字"""
@@ -44,6 +65,7 @@ def get_chars_batch(chars_str: str):
         else:
             missing.append(k)
     return {"found": result, "missing": missing}
+
 
 def search_dict(q: str, limit: int = 20):
     """按拼音或释义搜索"""
@@ -72,6 +94,7 @@ def search_dict(q: str, limit: int = 20):
             break
     return {"total": len(results), "results": results}
 
+
 def list_all_chars(page: int = 1, page_size: int = 50):
     """分页列表"""
     start = (page - 1) * page_size
@@ -82,6 +105,7 @@ def list_all_chars(page: int = 1, page_size: int = 50):
         "page_size": page_size,
         "chars": _CHAR_LIST[start:end],
     }
+
 
 def get_version():
     """字典版本信息"""
