@@ -73,26 +73,6 @@ class BatchOCRRequest(BaseModel):
     images: List[str]
 
 
-@app.post("/ocr/single")
-def ocr_single(
-    req: OCRRequest,
-    x_api_key: str = Header(None, alias="X-API-Key"),
-):
-    """单张图片 OCR 识别"""
-    _require_key(x_api_key)
-    try:
-        b64 = req.image_base64
-        if "," in b64:
-            b64 = b64.split(",", 1)[1]
-        result = ocr_bytes(base64.b64decode(b64))
-        result["index"] = 0
-        return result
-    except Exception as e:
-        return {"success": False, "error": str(e), "lines": [], "detail": [], "elapse": "0s"}
-
-# app.py 里的 OCR 接口
-
-
 @app.post("/ocr/single", response_model=OCRResult)
 def ocr_single(
     req: OCRRequest,

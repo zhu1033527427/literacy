@@ -1,25 +1,31 @@
 <template>
   <view class="learn-body">
-    <text class="pinyin">{{ pinyin }}</text>
+    <text class="pinyin">
+      {{ pinyin }}
+    </text>
     <image
-      :src="svgDataUrl"
-      mode="aspectFit"
-      style="`width: ${props.size}rpx; height: ${props.size}rpx"
+    :src="svgDataUrl"
+    mode="aspectFit"
+    style="`width: ${props.size}rpx; height: ${props.size}rpx"
     />
     <view class="word-row">
       <swiper
-        class="swiper"
-        circular
-        :indicator-dots="true"
-        :autoplay="false"
-        :interval="2000"
-        :duration="500"
-        @change="onSwiperChange"
+      class="swiper"
+      circular
+      :indicator-dots="true"
+      :autoplay="false"
+      :interval="2000"
+      :duration="500"
+      @change="onSwiperChange"
       >
         <swiper-item :current="currentIndex" v-for="(item, i) in props?.charInfo?.entries" :key="i">
           <view class="word-chip" v-for="(w, i) in item?.meanings" :key="i">
-            <text class="word-num">{{ i + 1 }}</text>
-            <text class="word-text">{{ w }}</text>
+            <text class="word-num">
+              {{ i + 1 }}
+            </text>
+            <text class="word-text">
+              {{ w }}
+            </text>
           </view>
         </swiper-item>
       </swiper>
@@ -27,126 +33,126 @@
   </view>
 </template>
 
-<script setup lang="uts">
-import { ref, onMounted, computed, watchEffect } from "vue";
-import { loadStrokeData, Stroke, strokesToSvgDataUrl } from "@/utils/write";
-import { speakText } from "@/utils/tts";
-import type { StrokeData, CharDetail } from "@literacy/shared-types";
+<script setup lang="ts">
+  import { ref, onMounted, computed, watchEffect } from "vue";
+  import { Stroke, strokesToSvgDataUrl } from "@/utils/write";
+  import { speakText } from "@/utils/tts";
+  import type { StrokeData, CharDetail } from "@literacy/shared-types";
 
-const props = defineProps<{
-  charInfo: CharDetail;
-  strokes: Array<Stroke>;
-}>();
+  const props = defineProps<{
+    charInfo: CharDetail;
+    strokes: Array<Stroke>;
+  }>();
 
-const currentIndex = ref(0);
+  const currentIndex = ref(0);
 
-const pinyin = ref("");
-const meanings = ref([]);
+  const pinyin = ref("");
+  const meanings = ref([]);
 
-// 滑动切换处理
-function onSwiperChange(e: any) {
-  const newIndex = e.detail.current;
-  currentIndex.value = newIndex;
-}
-
-watchEffect(async () => {
-  const charInfo = props?.charInfo;
-  const currentIdx = currentIndex.value;
-  if (charInfo) {
-    const { char, entries = [] } = charInfo;
-    const currentInfo = entries[currentIdx];
-    const [p, z] = currentInfo?.pinyin.split("|");
-    pinyin.value = p;
-    console.log("z: ", z);
-    let audio = await speakText(z); // 2.读字
+  // 滑动切换处理
+  function onSwiperChange(e: any) {
+    const newIndex = e.detail.current;
+    currentIndex.value = newIndex;
   }
-});
 
-const svgDataUrl = computed(() => strokesToSvgDataUrl(props?.strokes));
+  watchEffect(async () => {
+      const charInfo = props?.charInfo;
+      const currentIdx = currentIndex.value;
+      if (charInfo) {
+        const { char, entries = [] } = charInfo;
+        const currentInfo = entries[currentIdx];
+        const [p, z] = currentInfo?.pinyin.split("|");
+        pinyin.value = p;
+        console.log("z: ", z);
+        let audio = await speakText(z); // 2.读字
+      }
+    });
+
+  const svgDataUrl = computed(() => strokesToSvgDataUrl(props?.strokes));
 </script>
 
 <style>
-.learn-body {
-  align-items: center;
-  padding: 6rpx 34rpx 0;
-}
+  .learn-body {
+    align-items: center;
+    padding: 6rpx 34rpx 0;
+  }
 
-.pinyin {
-  font-size: 40rpx;
-  color: #7b9e84;
-  font-weight: bold;
-}
+  .pinyin {
+    font-size: 40rpx;
+    color: #7b9e84;
+    font-weight: bold;
+  }
 
-.word-row {
-  width: 590rpx;
-  margin-top: 20rpx;
-  flex-direction: row;
-  flex-wrap: wrap;
-}
+  .word-row {
+    width: 590rpx;
+    margin-top: 20rpx;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
 
-.word-chip {
-  margin-top: 10rpx;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 9rpx;
-  padding: 14rpx 24rpx;
-  width: 100%;
-  border-radius: 16rpx;
-  background: #fff;
-  border: 2rpx solid #ffeadd;
-  box-shadow: 0 4rpx 10rpx -6rpx rgba(255, 138, 92, 0.4);
-}
-.word-num {
-  flex: 0 0 40rpx;
-  width: 40rpx;
-  height: 40rpx;
-  border-radius: 50%;
-  text-align: center;
-  line-height: 40rpx;
-  font-size: 22rpx;
-  font-weight: 800;
-  color: #fff;
-  margin-top: 1rpx;
-}
+  .word-chip {
+    margin-top: 10rpx;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 9rpx;
+    padding: 14rpx 24rpx;
+    width: 100%;
+    border-radius: 16rpx;
+    background: #fff;
+    border: 2rpx solid #ffeadd;
+    box-shadow: 0 4rpx 10rpx -6rpx rgba(255, 138, 92, 0.4);
+  }
+  .word-num {
+    flex: 0 0 40rpx;
+    width: 40rpx;
+    height: 40rpx;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 40rpx;
+    font-size: 22rpx;
+    font-weight: 800;
+    color: #fff;
+    margin-top: 1rpx;
+  }
 
-.word-text {
-  flex: 1;
-  font-size: 30rpx;
-  color: #35543f;
-  white-space: normal;
-  word-wrap: break-word;
-  line-height: 1.65;
-}
+  .word-text {
+    flex: 1;
+    font-size: 30rpx;
+    color: #35543f;
+    white-space: normal;
+    word-wrap: break-word;
+    line-height: 1.65;
+  }
 
-.word-chip:nth-child(2n + 1) .word-num {
-  background: #ff8a5c;
-}
-.word-chip:nth-child(2n) .word-num {
-  background: #4ecdc4;
-}
-.word-chip:nth-child(3n) .word-num {
-  background: #a06cd5;
-}
-.word-chip:nth-child(1) {
-  border-color: #ffe2d2;
-}
-.word-chip:nth-child(2) {
-  border-color: #d4f4f1;
-  background: #fbffff;
-}
-.word-chip:nth-child(3) {
-  border-color: #ecdffa;
-  background: #fdfaff;
-}
-.swiper {
-  width: 100%;
-}
-.swiper-item {
-  display: block;
-  height: 300rpx;
-  line-height: 300rpx;
-  text-align: center;
-}
+  .word-chip:nth-child(2n + 1) .word-num {
+    background: #ff8a5c;
+  }
+  .word-chip:nth-child(2n) .word-num {
+    background: #4ecdc4;
+  }
+  .word-chip:nth-child(3n) .word-num {
+    background: #a06cd5;
+  }
+  .word-chip:nth-child(1) {
+    border-color: #ffe2d2;
+  }
+  .word-chip:nth-child(2) {
+    border-color: #d4f4f1;
+    background: #fbffff;
+  }
+  .word-chip:nth-child(3) {
+    border-color: #ecdffa;
+    background: #fdfaff;
+  }
+  .swiper {
+    width: 100%;
+  }
+  .swiper-item {
+    display: block;
+    height: 300rpx;
+    line-height: 300rpx;
+    text-align: center;
+  }
 </style>

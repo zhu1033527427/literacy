@@ -1,69 +1,73 @@
 <template>
   <view class="grid-box" :style="{ width: `${props.size}rpx`, height: `${props.size}rpx` }">
-    <view class="grid-line line-v" :style="{ height: `${props.size}rpx` }"></view>
-    <view class="grid-line line-h" :style="{ width: `${props.size}rpx` }"></view>
-    <view class="grid-line line-d1" :style="`width: ${l}rpx; margin-left: ${l / -2}rpx`"></view>
-    <view class="grid-line line-d2" :style="`width: ${l}rpx; margin-left: ${l / -2}rpx`"></view>
+    <view class="grid-line line-v" :style="{ height: `${props.size}rpx` }">
+    </view>
+    <view class="grid-line line-h" :style="{ width: `${props.size}rpx` }">
+    </view>
+    <view class="grid-line line-d1" :style="`width: ${l}rpx; margin-left: ${l / -2}rpx`">
+    </view>
+    <view class="grid-line line-d2" :style="`width: ${l}rpx; margin-left: ${l / -2}rpx`">
+    </view>
     <slot />
   </view>
 </template>
 
-<script setup lang="uts">
-const props = defineProps({
-  size: {
-    type: String
-  }
-});
-const l = computed(() => Math.sqrt(props.size * props.size * 2));
+<script setup lang="ts">
+  const props = defineProps({
+      size: {
+        type: String
+      }
+    });
+  const l = computed(() => Math.sqrt(props.size * props.size * 2));
 </script>
 
 <style>
-.grid-box {
-  background-color: #fbfdf7;
-  border-width: 4rpx;
-  border-style: solid;
-  border-color: #b9d6bc;
-  border-radius: 18rpx;
-  margin-top: 18rpx;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 10rpx 26rpx rgba(86, 130, 96, 0.12);
-  position: relative;
-}
+  .grid-box {
+    background-color: #fbfdf7;
+    border-width: 4rpx;
+    border-style: solid;
+    border-color: #b9d6bc;
+    border-radius: 18rpx;
+    margin-top: 18rpx;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10rpx 26rpx rgba(86, 130, 96, 0.12);
+    position: relative;
+  }
 
-.grid-line {
-  position: absolute;
-  background-color: #afccb2;
-  opacity: 0.55;
-}
+  .grid-line {
+    position: absolute;
+    background-color: #afccb2;
+    opacity: 0.55;
+  }
 
-.line-v {
-  left: 50%;
-  top: 6rpx;
-  width: 2rpx;
-  margin-left: -1rpx;
-}
+  .line-v {
+    left: 50%;
+    top: 6rpx;
+    width: 2rpx;
+    margin-left: -1rpx;
+  }
 
-.line-h {
-  top: 50%;
-  left: 6rpx;
-  height: 2rpx;
-  margin-top: -1rpx;
-}
+  .line-h {
+    top: 50%;
+    left: 6rpx;
+    height: 2rpx;
+    margin-top: -1rpx;
+  }
 
-.line-d1 {
-  top: 50%;
-  left: 50%;
-  height: 2rpx;
-  margin-top: -1rpx;
-  transform: rotate(45deg);
-}
+  .line-d1 {
+    top: 50%;
+    left: 50%;
+    height: 2rpx;
+    margin-top: -1rpx;
+    transform: rotate(45deg);
+  }
 
-.line-d2 {
-  top: 50%;
-  left: 50%;
-  height: 2rpx;
-  margin-top: -1rpx;
-  transform: rotate(-45deg);
-}
+  .line-d2 {
+    top: 50%;
+    left: 50%;
+    height: 2rpx;
+    margin-top: -1rpx;
+    transform: rotate(-45deg);
+  }
 </style>

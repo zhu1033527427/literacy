@@ -3,16 +3,16 @@
     //pages数组中第一项表示应用启动页，参考：https://doc.dcloud.net.cn/uni-app-x/collocation/pagesjson.html
 
     {
-      "path": "pages/literacy/literacy",
-      "style": {
-        "navigationBarTitleText": "识字"
-      }
-    },
-    {
       "path": "pages/index/index",
       "style": {
         "navigationBarTitleText": "拍拍识字"
         // "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/literacy/literacy",
+      "style": {
+        "navigationBarTitleText": "识字"
       }
     },
     {

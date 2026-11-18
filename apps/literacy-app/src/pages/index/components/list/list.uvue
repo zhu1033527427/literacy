@@ -1,7 +1,6 @@
 <template>
-  <!-- 绘本列表 -->
   <view class="section-header">
-    <text class="section-title"> 我的物品</text>
+    <text class="section-title">📚 我的物品</text>
     <text class="section-count">{{ materials.length }}样</text>
   </view>
 
@@ -10,21 +9,37 @@
       class="card"
       v-for="material in materials"
       :key="material.id"
-      @click="gotoTask(material.id)"
     >
-      <view class="cover" :style="{ backgroundImage: material.id }">
-        <image class="cover-image" :src="material.id" />
-      </view>
-      <view class="info">
-        <text class="title">{{ material.title }}</text>
-        <view class="meta">
-          <text class="char-badge">{{ material.chars.length }} 个生字</text>
-          <text class="progress">{{ material.progress }}</text>
+      <!-- 点击整个卡片跳转到详情 -->
+      <view class="card-body" @click="gotoTask(material.id)">
+        <view class="cover" :style="{ backgroundImage: material.id }">
+          <image class="cover-image" :src="material.id" />
         </view>
+        <view class="info">
+          <text class="title">{{ material.title }}</text>
+          <view class="meta">
+            <text class="char-badge">{{ material.chars.length }} 个生字</text>
+            <text class="progress">{{ material.progress }}</text>
+          </view>
+        </view>
+      </view>
+      
+      <!-- Kindle 推送按钮 -->
+      <view class="kindle-row">
+        <button 
+          class="kindle-btn" 
+          :loading="pushingId === material.id"
+          :disabled="pushingId === material.id"
+          @click.stop="pushToKindle(material)"
+        >
+          <text class="kindle-icon">📖</text>
+          <text>{{ pushingId === material.id ? '推送中...' : '推送到 Kindle' }}</text>
+        </button>
       </view>
     </view>
   </view>
 </template>
+
 <script setup lang="ts">
 import { onShow } from '@dcloudio/uni-app';
 import { ocrState } from '@/stores/ocr';
@@ -32,6 +47,8 @@ import { ref } from 'vue';
 import { Material } from '@literacy/shared-types';
 
 const materials = ref<Array<Material>>([]);
+const pushingId = ref<string | null>(null); // 正在推送的 ID
+
 onShow(() => {
   const data = ocrState.list;
   if (data && data.length > 0) {
@@ -42,7 +59,57 @@ onShow(() => {
 function gotoTask(id: string) {
   uni.navigateTo({ url: '/pages/literacy/literacy?id=' + id });
 }
+
+/**
+ * 推送到 Kindle
+ */
+async function pushToKindle(material: Material) {
+  // 防止重复点击
+  if (pushingId.value === material.id) return;
+  
+  pushingId.value = material.id;
+  
+  try {
+    // 这里假设你的后端服务地址，根据实际情况修改
+    const baseUrl = 'https://your-server.com'; // ← 改成你的服务器地址
+    
+    const res = await uni.request({
+      url: `${baseUrl}/push`,
+      method: 'POST',
+      data: {
+        // 传给后端的文章信息
+        title: material.title,
+        content: material.content || '', // 如果有正文内容
+        url: material.url || '',         // 如果有原文链接
+        // 也可以传 ID，让后端自己去拉数据
+        id: material.id
+      },
+      timeout: 30000 // 抓取文章可能需要一些时间
+    });
+    
+    if (res.data.success) {
+      uni.showToast({
+        title: `《${material.title}》已推送到 Kindle`,
+        icon: 'success',
+        duration: 2500
+      });
+    } else {
+      throw new Error(res.data.error || '推送失败');
+    }
+    
+  } catch (error: any) {
+    uni.showToast({
+      title: error.message || '推送失败，请重试',
+      icon: 'none',
+      duration: 2000
+    });
+    
+  } finally {
+    pushingId.value = null;
+  }
+}
 </script>
+
 <style>
 /* ===== 区块标题 ===== */
 .section-header {
@@ -81,6 +148,10 @@ function gotoTask(id: string) {
   margin-top: 24rpx;
   overflow: hidden;
   box-shadow: 0 8rpx 20rpx rgba(255, 182, 193, 0.15);
+}
+
+.card-body {
+  /* 点击跳转的区域 */
 }
 
 .cover {
@@ -124,5 +195,38 @@ function gotoTask(id: string) {
 
 .progress {
   font-size: 18rpx;
+}
+
+/* ===== Kindle 按钮样式 ===== */
+.kindle-row {
+  padding: 0 20rpx 20rpx;
+}
+
+.kindle-btn {
+  width: 100%;
+  height: 56rpx;
+  line-height: 56rpx;
+  font-size: 22rpx;
+  color: #ffffff;
+  background: linear-gradient(135deg, #ff9900, #ff7700);
+  border: none;
+  border-radius: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  padding: 0;
+}
+
+.kindle-btn::after {
+  border: none;
+}
+
+.kindle-btn[disabled] {
+  opacity: 0.6;
+}
+
+.kindle-icon {
+  font-size: 26rpx;
 }
 </style>
